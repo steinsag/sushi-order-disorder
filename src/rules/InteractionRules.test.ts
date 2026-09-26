@@ -907,4 +907,414 @@ describe("InteractionRules", () => {
       expect(state.activeOrders[0].status).toBe("active");
     });
   });
+
+  describe("Delivery Station Interactions & Complete Order Path", () => {
+    it("delivers a matching plate on-time and increments score", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+        activeOrders: [
+          {
+            id: "ord-1",
+            recipeId: "cucumber-maki",
+            totalTime: 45,
+            timeRemaining: 25,
+            isExpress: false,
+            status: "active",
+          },
+        ],
+      };
+
+      // Position P0 at delivery station carrying cucumber-maki plate
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 760, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-delivery",
+        carriedItem: createPlateItem("cucumber-maki"),
+      };
+
+      const inputs = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, inputs);
+
+      // Plate is delivered
+      expect(state.players[0].carriedItem).toBeNull();
+      // Active order fulfilled and removed
+      expect(state.activeOrders).toHaveLength(0);
+      // Score awarded
+      expect(state.scoreState.totalScore).toBe(100);
+      expect(state.scoreState.completedOrders).toBe(1);
+      expect(state.scoreState.onTimeOrders).toBe(1);
+      expect(state.scoreState.recentFeedback?.type).toBe("success");
+    });
+
+    it("delivers a plate via action2Pressed (Abgeben/Ablegen key) as well", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+        activeOrders: [
+          {
+            id: "ord-1",
+            recipeId: "cucumber-maki",
+            totalTime: 45,
+            timeRemaining: 25,
+            isExpress: false,
+            status: "active",
+          },
+        ],
+      };
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 760, y: 380 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-delivery",
+        carriedItem: createPlateItem("cucumber-maki"),
+      };
+
+      const inputs = [
+        { ...createNeutralPlayerInput(), action2: true, action2Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, inputs);
+
+      expect(state.players[0].carriedItem).toBeNull();
+      expect(state.activeOrders).toHaveLength(0);
+      expect(state.scoreState.totalScore).toBe(100);
+      expect(state.scoreState.completedOrders).toBe(1);
+      expect(state.scoreState.recentFeedback?.type).toBe("success");
+    });
+
+    it("delivers an expired order with reduced points", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+        activeOrders: [
+          {
+            id: "ord-late",
+            recipeId: "cucumber-maki",
+            totalTime: 45,
+            timeRemaining: 0,
+            isExpress: false,
+            status: "expired",
+          },
+        ],
+      };
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 760, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-delivery",
+        carriedItem: createPlateItem("cucumber-maki"),
+      };
+
+      const inputs = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, inputs);
+
+      expect(state.players[0].carriedItem).toBeNull();
+      expect(state.activeOrders).toHaveLength(0);
+      expect(state.scoreState.totalScore).toBe(50);
+      expect(state.scoreState.completedOrders).toBe(1);
+      expect(state.scoreState.lateOrders).toBe(1);
+      expect(state.scoreState.recentFeedback?.type).toBe("late");
+    });
+
+    it("penalizes delivery of an incorrect dish and keeps active orders intact", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+        scoreState: {
+          totalScore: 50,
+          completedOrders: 1,
+          onTimeOrders: 1,
+          lateOrders: 0,
+          wrongDeliveries: 0,
+          recentFeedback: null,
+        },
+        activeOrders: [
+          {
+            id: "ord-cuke",
+            recipeId: "cucumber-maki",
+            totalTime: 45,
+            timeRemaining: 30,
+            isExpress: false,
+            status: "active",
+          },
+        ],
+      };
+
+      // Player carries salmon-nigiri plate to delivery
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 760, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-delivery",
+        carriedItem: createPlateItem("salmon-nigiri"),
+      };
+
+      const inputs = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, inputs);
+
+      // Plate is cleared from player hand
+      expect(state.players[0].carriedItem).toBeNull();
+      // Active order remains open
+      expect(state.activeOrders).toHaveLength(1);
+      expect(state.activeOrders[0].id).toBe("ord-cuke");
+      // Score penalized
+      expect(state.scoreState.totalScore).toBe(30); // 50 - 20
+      expect(state.scoreState.wrongDeliveries).toBe(1);
+      expect(state.scoreState.recentFeedback?.type).toBe("wrong");
+    });
+
+    it("does not accept raw ingredients at delivery station", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+        activeOrders: [
+          {
+            id: "ord-1",
+            recipeId: "cucumber-maki",
+            totalTime: 45,
+            timeRemaining: 30,
+            isExpress: false,
+            status: "active",
+          },
+        ],
+      };
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 760, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-delivery",
+        carriedItem: createIngredientItem("cucumber"),
+      };
+
+      const inputs = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, inputs);
+
+      // Player still holds raw cucumber, score and orders unchanged
+      expect((state.players[0].carriedItem as IngredientItem)?.ingredient).toBe(
+        "cucumber",
+      );
+      expect(state.scoreState.totalScore).toBe(0);
+      expect(state.activeOrders).toHaveLength(1);
+    });
+
+    it("plays through a complete cooperative order lifecycle (order -> ingredients -> roll -> deliver)", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      // 1. P0 accepts order at station-order
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 160, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-order",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.activeOrders).toHaveLength(1);
+      expect(state.activeOrders[0].recipeId).toBe("cucumber-maki");
+
+      // 2. Prepare rice at rice cooker: start cooking and advance time
+      state.players[1] = {
+        ...state.players[1],
+        pos: { x: 380, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-rice",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        createNeutralPlayerInput(),
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.riceCooker.state).toBe("cooking");
+
+      // Advance 10s so rice finishes
+      for (let i = 0; i < 600; i++) {
+        state = updateWorldState(state, 1 / 60);
+      }
+      expect(state.riceCooker.state).toBe("ready");
+
+      // 3. P1 takes rice from cooker
+      state.players[1] = {
+        ...state.players[1],
+        pos: { x: 380, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-rice",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        createNeutralPlayerInput(),
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect((state.players[1].carriedItem as IngredientItem)?.ingredient).toBe(
+        "rice",
+      );
+
+      // 4. P1 puts rice onto roll station
+      state.players[1] = {
+        ...state.players[1],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        createNeutralPlayerInput(),
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.players[1].carriedItem).toBeNull();
+      expect(state.rollStation.items).toHaveLength(1);
+
+      // 5. P0 gets nori from fridge and places on roll station
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 560, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-fridge",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect((state.players[0].carriedItem as IngredientItem)?.ingredient).toBe(
+        "nori",
+      );
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.players[0].carriedItem).toBeNull();
+      expect(state.rollStation.items).toHaveLength(2);
+
+      // 6. P0 gets cucumber from fridge and places on roll station
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 610, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-fridge",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect((state.players[0].carriedItem as IngredientItem)?.ingredient).toBe(
+        "cucumber",
+      );
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.rollStation.items).toHaveLength(3);
+
+      // 7. P0 triggers rolling (action1 on roll station with valid recipe)
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.rollStation.state).toBe("rolling");
+
+      // Advance 2s for rolling animation
+      for (let i = 0; i < 130; i++) {
+        state = updateWorldState(state, 1 / 60);
+      }
+      expect(state.rollStation.state).toBe("idle");
+      expect(state.rollStation.items).toHaveLength(1);
+      expect(state.rollStation.items[0].type).toBe("plate");
+
+      // 8. P0 picks up plate from roll station
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.players[0].carriedItem?.type).toBe("plate");
+      expect(state.rollStation.items).toHaveLength(0);
+
+      // 9. P0 moves to delivery station and delivers plate
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 760, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-delivery",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      // 10. Verify order fulfilled and score increased
+      expect(state.players[0].carriedItem).toBeNull();
+      expect(state.activeOrders).toHaveLength(0);
+      expect(state.scoreState.totalScore).toBe(100);
+      expect(state.scoreState.completedOrders).toBe(1);
+      expect(state.scoreState.onTimeOrders).toBe(1);
+    });
+  });
 });

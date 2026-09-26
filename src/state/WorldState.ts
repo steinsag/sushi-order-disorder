@@ -25,6 +25,7 @@ import {
   createInitialOrderStationState,
   type OrderStationState,
 } from "./OrderState";
+import { createInitialScoreState, type ScoreState } from "./ScoreState";
 import {
   advanceStationTimers,
   processPlayerInteractions,
@@ -42,6 +43,7 @@ export interface WorldState {
   obstacles: readonly ColliderAABB[];
   orderStation: OrderStationState;
   activeOrders: readonly ActiveOrder[];
+  scoreState: ScoreState;
   riceCooker: RiceCookerStationState;
   fridge: FridgeStationState;
   rollStation: RollStationState;
@@ -66,6 +68,7 @@ export function createInitialWorldState(): WorldState {
     obstacles: getStationColliders(DEFAULT_STATIONS),
     orderStation: createInitialOrderStationState(),
     activeOrders: [],
+    scoreState: createInitialScoreState(),
     riceCooker: createInitialRiceCookerState(),
     fridge: createInitialFridgeState(),
     rollStation: createInitialRollStationState(),

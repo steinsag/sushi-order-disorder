@@ -250,6 +250,19 @@ export class Renderer {
           );
           stationText = `${INGREDIENT_METADATA[targetedIng].emoji} ${INGREDIENT_METADATA[targetedIng].label}`;
         }
+      } else if (obj.id === "station-delivery") {
+        if (isTargeted) {
+          const firstTargetPlayer = targetingPlayers[0];
+          if (firstTargetPlayer.carriedItem?.type === "plate") {
+            stationText = "🍽️ Teller abgeben (Akt1/2)";
+          } else if (firstTargetPlayer.carriedItem?.type === "ingredient") {
+            stationText = "❌ Nur fertige Teller!";
+          } else {
+            stationText = "🍽️ Ausgabe";
+          }
+        } else {
+          stationText = "🍽️ Ausgabe";
+        }
       }
 
       const badgeOffsetY = stationProgressBar ? -74 : -54;

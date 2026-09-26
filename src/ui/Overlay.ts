@@ -205,10 +205,26 @@ export class Overlay {
           })
           .join("");
 
+        // 3. Render delivery feedback toast if active
+        const feedback = state.scoreState?.recentFeedback;
+        const feedbackHtml = feedback
+          ? `<div class="hud-delivery-toast feedback-${feedback.type}">
+              <span class="toast-text">${feedback.message}</span>
+            </div>`
+          : "";
+
         html = `
           <div class="hud-top-bar">
             <div class="hud-orders-container">
               ${ordersHtml}
+            </div>
+            <div class="hud-center-container">
+              <div class="hud-score-badge">
+                <span class="score-icon">🏆</span>
+                <span class="score-value">${state.scoreState?.totalScore ?? 0}</span>
+                <span class="score-label">Punkte</span>
+              </div>
+              ${feedbackHtml}
             </div>
             <div class="hud-controls">
               <button id="btn-pause" class="btn btn-small">Pause (Esc)</button>

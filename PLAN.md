@@ -58,7 +58,7 @@ src/
 | G1 | Tragbare Zutaten, Kühlschrank und Reiskocher | T4 | erledigt |
 | G2 | Bestellannahme und gemeinsame Rezeptkarten | G1 | erledigt |
 | G3 | Rollstation und ein vollständiges Rezept | G2 | erledigt |
-| G4 | Ausgabe, Timer und Wertung für einen kompletten Auftrag | G3 | offen |
+| G4 | Ausgabe, Timer und Wertung für einen kompletten Auftrag | G3 | erledigt |
 | G5 | Alle vier Rezepte und parallele Bestellungen | G4 | offen |
 | G6 | Gemeinsamer Engpass, Aufräumen und Vorratsdynamik | G5 | offen |
 | G7 | Schichtverlauf, Pause und Endwertung | G6 | offen |

@@ -10,6 +10,7 @@ import {
 import type { WorldState } from "../state/WorldState";
 import type { StationDefinition } from "./StationConfig";
 import {
+  DEFAULT_ORDER_SPAWN_DELAY,
   DEFAULT_RECIPE_ID,
   findMatchingRecipe,
   getRecipeDefinition,
@@ -19,6 +20,8 @@ import {
   advanceActiveOrders,
   advanceOrderStationState,
 } from "./OrderRules";
+import { evaluateDelivery } from "./DeliveryRules";
+import { advanceScoreState, applyDeliveryFeedback } from "../state/ScoreState";
 
 export const DEFAULT_ITEM_PICKUP_RADIUS = 48; // World pixels
 
@@ -120,12 +123,18 @@ export function advanceStationTimers(
     ? advanceOrderStationState(state.orderStation, activeCount, dt)
     : state.orderStation;
 
+  // 5. Advance score feedback timer
+  const scoreState = state.scoreState
+    ? advanceScoreState(state.scoreState, dt)
+    : state.scoreState;
+
   return {
     ...state,
     riceCooker,
     rollStation,
     activeOrders,
     orderStation,
+    scoreState,
   };
 }
 
@@ -231,6 +240,46 @@ function handleAction1(
         ...state,
         players: updatedPlayers,
       };
+    }
+
+    if (targetStation?.type === "delivery") {
+      if (carried.type === "plate") {
+        const outcome = evaluateDelivery(carried, state.activeOrders);
+        const updatedScoreState = applyDeliveryFeedback(
+          state.scoreState,
+          outcome.result.type,
+          outcome.result.message,
+          outcome.result.scoreDelta,
+          outcome.result.recipeId,
+        );
+
+        const updatedPlayers = [...state.players] as typeof state.players;
+        updatedPlayers[slot] = { ...player, carriedItem: null };
+
+        let orderStation = state.orderStation;
+        if (
+          outcome.result.matchedOrder &&
+          orderStation &&
+          orderStation.pendingOrder === null &&
+          orderStation.nextSpawnTimer === 0
+        ) {
+          orderStation = {
+            ...orderStation,
+            nextSpawnTimer: DEFAULT_ORDER_SPAWN_DELAY,
+          };
+        }
+
+        return {
+          ...state,
+          players: updatedPlayers,
+          activeOrders: outcome.updatedActiveOrders,
+          scoreState: updatedScoreState,
+          orderStation,
+        };
+      }
+
+      // If carried item is an ingredient, delivery station rejects it (no-op)
+      return state;
     }
 
     if (targetStation?.type === "rice") {
@@ -395,6 +444,14 @@ function handleAction2(
   const player = state.players[slot];
 
   if (player.carriedItem) {
+    // If targeting delivery station with a carried plate, deliver it via action2 (Abgeben / Ablegen)
+    if (
+      targetStation?.type === "delivery" &&
+      player.carriedItem.type === "plate"
+    ) {
+      return handleAction1(state, slot, targetStation);
+    }
+
     // Drop carried item onto the kitchen floor
     const dropOffset = 22;
     const dropX = Math.min(

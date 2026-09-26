@@ -186,4 +186,49 @@ describe("Overlay UI & Recipe Cards", () => {
 
     overlay.destroy();
   });
+
+  it("renders score badge and delivery feedback toast when available", () => {
+    const root = createMockElement() as unknown as HTMLElement;
+    const callbacks = {
+      onStart: vi.fn(),
+      onPauseToggle: vi.fn(),
+      onReset: vi.fn(),
+      onRetry: vi.fn(),
+    };
+
+    const overlay = new Overlay(root, callbacks);
+    const state: WorldState = {
+      ...createInitialWorldState(),
+      phase: "running",
+      scoreState: {
+        totalScore: 250,
+        completedOrders: 2,
+        onTimeOrders: 2,
+        lateOrders: 0,
+        wrongDeliveries: 0,
+        recentFeedback: {
+          id: "fb-1",
+          type: "success",
+          message: "🥒 Gurken-Maki pünktlich geliefert! (+100)",
+          scoreDelta: 100,
+          timeRemaining: 2.5,
+          recipeId: "cucumber-maki",
+        },
+      },
+    };
+
+    overlay.render(state);
+
+    // @ts-expect-error accessing innerHTML on container mock
+    const container = overlay["container"] as MockElement;
+    const html = container.innerHTML;
+
+    expect(html).toContain("hud-score-badge");
+    expect(html).toContain("250");
+    expect(html).toContain("hud-delivery-toast");
+    expect(html).toContain("feedback-success");
+    expect(html).toContain("Gurken-Maki pünktlich geliefert! (+100)");
+
+    overlay.destroy();
+  });
 });
