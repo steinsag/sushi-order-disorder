@@ -22,7 +22,15 @@ jobs:
           node-version: 26
           cache: "npm"
 
-      - name: Install dependencies
+      - name: Restore node_modules
+        id: cache-node-modules
+        uses: actions/cache@v6
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package.json', 'package-lock.json') }}
+
+      - if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        name: Install dependencies
         run: npm ci
 
       - name: Run checks and tests
