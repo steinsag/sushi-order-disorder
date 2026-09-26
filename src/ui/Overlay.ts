@@ -1,5 +1,6 @@
 import type { WorldState } from "../state/WorldState";
 import type { PlayerIndex } from "../input/PlayerInput";
+import { INGREDIENT_METADATA } from "../rules/IngredientConfig";
 
 export interface OverlayCallbacks {
   onStart: () => void;
@@ -112,13 +113,32 @@ export class Overlay {
         `;
         break;
 
-      case "running":
+      case "running": {
+        const joinedPlayersHtml = state.players
+          .map((p) => {
+            if (!p.joined) return "";
+            const itemText = p.carriedItem
+              ? `${INGREDIENT_METADATA[p.carriedItem.ingredient].emoji} ${INGREDIENT_METADATA[p.carriedItem.ingredient].label}`
+              : "leer";
+            return `
+              <div class="hud-player-badge" style="border-left: 3px solid ${p.color};">
+                <span class="hud-player-name" style="color: ${p.color};">P${p.id + 1}:</span>
+                <span class="hud-player-item">${itemText}</span>
+              </div>
+            `;
+          })
+          .join("");
+
         html = `
           <div class="hud-bar">
+            <div class="hud-players-list">
+              ${joinedPlayersHtml}
+            </div>
             <button id="btn-pause" class="btn btn-small">Pause (Esc)</button>
           </div>
         `;
         break;
+      }
     }
 
     if (this.currentHtml !== html) {

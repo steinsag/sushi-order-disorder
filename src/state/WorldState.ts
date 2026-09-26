@@ -9,6 +9,21 @@ import {
 import type { ColliderAABB, StationDefinition } from "../rules/StationConfig";
 import { DEFAULT_STATIONS, getStationColliders } from "../world/KitchenLayout";
 import { findInteractionTarget } from "../world/Interaction";
+import type { DroppedItem } from "./ItemState";
+import {
+  createInitialCounterState,
+  createInitialFridgeState,
+  createInitialRiceCookerState,
+  createInitialRollStationState,
+  type CounterStationState,
+  type FridgeStationState,
+  type RiceCookerStationState,
+  type RollStationState,
+} from "./StationState";
+import {
+  advanceStationTimers,
+  processPlayerInteractions,
+} from "../rules/InteractionRules";
 
 export type GamePhase = "loading" | "title" | "running" | "paused" | "error";
 
@@ -20,6 +35,11 @@ export interface WorldState {
   bounds: KitchenBounds;
   stations: readonly StationDefinition[];
   obstacles: readonly ColliderAABB[];
+  riceCooker: RiceCookerStationState;
+  fridge: FridgeStationState;
+  rollStation: RollStationState;
+  counters: Record<string, CounterStationState>;
+  droppedItems: readonly DroppedItem[];
   errorMessage?: string;
 }
 
@@ -37,6 +57,13 @@ export function createInitialWorldState(): WorldState {
     bounds: DEFAULT_KITCHEN_BOUNDS,
     stations: DEFAULT_STATIONS,
     obstacles: getStationColliders(DEFAULT_STATIONS),
+    riceCooker: createInitialRiceCookerState(),
+    fridge: createInitialFridgeState(),
+    rollStation: createInitialRollStationState(),
+    counters: {
+      "counter-island": createInitialCounterState(),
+    },
+    droppedItems: [],
   };
 }
 
@@ -74,23 +101,39 @@ export function updateWorldState(
     return state;
   }
 
-  // 1. Update player positions, velocities, and facing directions with obstacles & boundaries
-  const updatedPlayers = state.players.map((p, i) => {
-    const input = inputs ? inputs[i] : p.input;
-    const moved = updatePlayer(p, input, dt, state.bounds, state.obstacles);
+  // 1. Advance station timers (e.g. rice cooking progress)
+  let updatedState = advanceStationTimers(state, dt);
 
-    // 2. Determine unambiguous interaction target for active players
-    const target = findInteractionTarget(moved, state.stations);
+  // 2. Update player positions, velocities, and facing directions with obstacles & boundaries
+  const updatedPlayers = updatedState.players.map((p, i) => {
+    const input = inputs ? inputs[i] : p.input;
+    const moved = updatePlayer(
+      p,
+      input,
+      dt,
+      updatedState.bounds,
+      updatedState.obstacles,
+    );
+
+    // Determine unambiguous interaction target for active players
+    const target = findInteractionTarget(moved, updatedState.stations);
     return {
       ...moved,
       targetStationId: target ? target.id : null,
     };
   }) as [PlayerState, PlayerState, PlayerState, PlayerState];
 
-  return {
-    ...state,
-    simulationTime: state.simulationTime + dt,
-    tickCount: state.tickCount + 1,
+  updatedState = {
+    ...updatedState,
+    simulationTime: updatedState.simulationTime + dt,
+    tickCount: updatedState.tickCount + 1,
     players: updatedPlayers,
   };
+
+  // 3. Process player interactions in deterministic slot order (0 -> 1 -> 2 -> 3)
+  for (let slot = 0; slot < 4; slot++) {
+    updatedState = processPlayerInteractions(updatedState, slot as PlayerIndex);
+  }
+
+  return updatedState;
 }

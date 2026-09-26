@@ -1,0 +1,447 @@
+import { describe, expect, it } from "vitest";
+import {
+  createInitialWorldState,
+  updateWorldState,
+  type WorldState,
+} from "../state/WorldState";
+import { createNeutralPlayerInput } from "../input/PlayerInput";
+import {
+  advanceStationTimers,
+  getFridgeIngredientForPlayerPos,
+} from "./InteractionRules";
+import { createIngredientItem } from "../state/ItemState";
+
+describe("InteractionRules", () => {
+  describe("Fridge compartment selection", () => {
+    it("selects correct ingredient based on relative player X position", () => {
+      const fridgeCenter = { x: 600, y: 110 };
+      expect(
+        getFridgeIngredientForPlayerPos({ x: 560, y: 160 }, fridgeCenter),
+      ).toBe("nori");
+      expect(
+        getFridgeIngredientForPlayerPos({ x: 590, y: 160 }, fridgeCenter),
+      ).toBe("salmon");
+      expect(
+        getFridgeIngredientForPlayerPos({ x: 610, y: 160 }, fridgeCenter),
+      ).toBe("cucumber");
+      expect(
+        getFridgeIngredientForPlayerPos({ x: 640, y: 160 }, fridgeCenter),
+      ).toBe("avocado");
+    });
+
+    it("allows a player to pick up ingredients from fridge with action1", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      // Position P0 in front of fridge salmon compartment
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 590, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-fridge",
+        carriedItem: null,
+      };
+
+      const inputs = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, inputs);
+      expect(state.players[0].carriedItem).not.toBeNull();
+      expect(state.players[0].carriedItem?.ingredient).toBe("salmon");
+    });
+
+    it("swaps carried ingredient when interacting with fridge again", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      // P0 holding salmon moves to avocado slot (x=640)
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 640, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-fridge",
+        carriedItem: createIngredientItem("salmon"),
+      };
+
+      const inputs = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, inputs);
+      expect(state.players[0].carriedItem?.ingredient).toBe("avocado");
+    });
+  });
+
+  describe("Rice Cooker State & Cooking", () => {
+    it("dispenses rice when ready and decrements portions", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      expect(state.riceCooker.state).toBe("ready");
+      const initialPortions = state.riceCooker.portions;
+
+      // Position P0 at rice cooker
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-rice",
+        carriedItem: null,
+      };
+
+      const inputs = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, inputs);
+      expect(state.players[0].carriedItem?.ingredient).toBe("rice");
+      expect(state.riceCooker.portions).toBe(initialPortions - 1);
+    });
+
+    it("transitions to empty when last portion is taken, then cooking can be started", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+        riceCooker: {
+          ...createInitialWorldState().riceCooker,
+          portions: 1,
+          state: "ready",
+        },
+      };
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-rice",
+        carriedItem: null,
+      };
+
+      const inputs = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      // Take last portion
+      state = updateWorldState(state, 1 / 60, inputs);
+      expect(state.players[0].carriedItem?.ingredient).toBe("rice");
+      expect(state.riceCooker.portions).toBe(0);
+      expect(state.riceCooker.state).toBe("empty");
+
+      // P1 tries to interact with empty rice cooker -> starts cooking
+      state.players[1] = {
+        ...state.players[1],
+        pos: { x: 380, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-rice",
+        carriedItem: null,
+      };
+
+      const inputsCook = [
+        createNeutralPlayerInput(),
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, inputsCook);
+      expect(state.riceCooker.state).toBe("cooking");
+      expect(state.riceCooker.cookTimeRemaining).toBe(
+        state.riceCooker.totalCookTime,
+      );
+    });
+
+    it("advances cooking timer and becomes ready with full portions", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+        riceCooker: {
+          state: "cooking",
+          portions: 0,
+          maxPortions: 4,
+          cookTimeRemaining: 5.0,
+          totalCookTime: 5.0,
+          cookingProgress: 0,
+        },
+      };
+
+      // Advance by 2.5 seconds
+      state = advanceStationTimers(state, 2.5);
+      expect(state.riceCooker.state).toBe("cooking");
+      expect(state.riceCooker.cookTimeRemaining).toBeCloseTo(2.5, 3);
+      expect(state.riceCooker.cookingProgress).toBeCloseTo(0.5, 3);
+
+      // Advance remaining time
+      state = advanceStationTimers(state, 2.6);
+      expect(state.riceCooker.state).toBe("ready");
+      expect(state.riceCooker.portions).toBe(4);
+      expect(state.riceCooker.cookingProgress).toBe(1);
+    });
+
+    it("allows cancelling cooking via action2", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+        riceCooker: {
+          state: "cooking",
+          portions: 0,
+          maxPortions: 4,
+          cookTimeRemaining: 3.0,
+          totalCookTime: 5.0,
+          cookingProgress: 0.4,
+        },
+      };
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-rice",
+        carriedItem: null,
+      };
+
+      const inputs = [
+        { ...createNeutralPlayerInput(), action2: true, action2Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, inputs);
+      expect(state.riceCooker.state).toBe("empty");
+      expect(state.riceCooker.cookTimeRemaining).toBe(0);
+    });
+  });
+
+  describe("Roll Station & Counters", () => {
+    it("places item onto roll station and allows picking it back up", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      // P0 holding nori at roll station (x=380, y=440)
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll",
+        carriedItem: createIngredientItem("nori"),
+      };
+
+      const placeInput = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      // Place nori
+      state = updateWorldState(state, 1 / 60, placeInput);
+      expect(state.players[0].carriedItem).toBeNull();
+      expect(state.rollStation.items).toHaveLength(1);
+      expect(state.rollStation.items[0].ingredient).toBe("nori");
+
+      // Pick nori back up
+      state = updateWorldState(state, 1 / 60, placeInput);
+      expect(state.players[0].carriedItem?.ingredient).toBe("nori");
+      expect(state.rollStation.items).toHaveLength(0);
+    });
+
+    it("allows staging items on island counter", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 480, y: 330 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "counter-island",
+        carriedItem: createIngredientItem("cucumber"),
+      };
+
+      const placeInput = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      // Place on counter
+      state = updateWorldState(state, 1 / 60, placeInput);
+      expect(state.players[0].carriedItem).toBeNull();
+      expect(state.counters["counter-island"].items).toHaveLength(1);
+      expect(state.counters["counter-island"].items[0].ingredient).toBe(
+        "cucumber",
+      );
+
+      // P1 picks it up from counter
+      state.players[1] = {
+        ...state.players[1],
+        pos: { x: 480, y: 330 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "counter-island",
+        carriedItem: null,
+      };
+
+      const p1TakeInput = [
+        createNeutralPlayerInput(),
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, p1TakeInput);
+      expect(state.players[1].carriedItem?.ingredient).toBe("cucumber");
+      expect(state.counters["counter-island"].items).toHaveLength(0);
+    });
+  });
+
+  describe("Floor Drop & Pickup", () => {
+    it("drops carried item to floor on action2 and picks it back up with action1", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      // P0 in middle of kitchen holding avocado
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 300, y: 300 },
+        facing: { x: 1, y: 0 },
+        targetStationId: null,
+        carriedItem: createIngredientItem("avocado"),
+      };
+
+      const dropInput = [
+        { ...createNeutralPlayerInput(), action2: true, action2Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, dropInput);
+      expect(state.players[0].carriedItem).toBeNull();
+      expect(state.droppedItems).toHaveLength(1);
+      expect(state.droppedItems[0].item.ingredient).toBe("avocado");
+
+      // Pick up with action1
+      const pickupInput = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, pickupInput);
+      expect(state.players[0].carriedItem?.ingredient).toBe("avocado");
+      expect(state.droppedItems).toHaveLength(0);
+    });
+  });
+
+  describe("Co-op & Concurrent Actions", () => {
+    it("two players bring different ingredients to roll station without duplication or loss", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      // P0 brings Nori, P1 brings Salmon to roll station
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 360, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll",
+        carriedItem: createIngredientItem("nori"),
+      };
+      state.players[1] = {
+        ...state.players[1],
+        pos: { x: 400, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll",
+        carriedItem: createIngredientItem("salmon"),
+      };
+
+      // Both press action1 in the same tick
+      const simultaneousInputs = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, simultaneousInputs);
+
+      expect(state.players[0].carriedItem).toBeNull();
+      expect(state.players[1].carriedItem).toBeNull();
+      expect(state.rollStation.items).toHaveLength(2);
+      expect(state.rollStation.items.map((i) => i.ingredient)).toEqual([
+        "nori",
+        "salmon",
+      ]);
+    });
+
+    it("two players attempting to take the last rice portion simultaneously prevents duplication", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+        riceCooker: {
+          ...createInitialWorldState().riceCooker,
+          portions: 1,
+          state: "ready",
+        },
+      };
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 360, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-rice",
+        carriedItem: null,
+      };
+      state.players[1] = {
+        ...state.players[1],
+        pos: { x: 400, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-rice",
+        carriedItem: null,
+      };
+
+      const simultaneousInputs = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, simultaneousInputs);
+
+      // P0 got the 1 portion
+      expect(state.players[0].carriedItem?.ingredient).toBe("rice");
+      // P1 did not get duplicate rice
+      expect(state.players[1].carriedItem).toBeNull();
+      // Rice cooker is now empty (or started cooking if P1 triggered empty cooker)
+      expect(state.riceCooker.portions).toBe(0);
+    });
+  });
+});

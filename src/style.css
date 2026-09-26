@@ -254,7 +254,36 @@ body {
   right: 16px;
   pointer-events: auto;
   display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hud-players-list {
+  display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+.hud-player-badge {
+  background: rgba(24, 24, 27, 0.85);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border-color);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-player-name {
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.hud-player-item {
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .error-card {

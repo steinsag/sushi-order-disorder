@@ -5,6 +5,8 @@ import { type SpriteRenderCommand, renderSpriteScene } from "./SpriteRenderer";
 import { SPRITE_METADATA, SPRITE_URLS, type SpriteId } from "./SpriteAssets";
 import type { Vec2 } from "../math/vec2";
 import { DEFAULT_STATIONS } from "../world/KitchenLayout";
+import { INGREDIENT_METADATA } from "../rules/IngredientConfig";
+import { getFridgeIngredientForPlayerPos } from "../rules/InteractionRules";
 
 export interface RendererOptions {
   width?: number;
@@ -137,9 +139,49 @@ export class Renderer {
       );
       const isTargeted = targetingPlayers.length > 0;
       const highlightColor = isTargeted ? targetingPlayers[0].color : undefined;
-      const targetLabel = isTargeted
-        ? targetingPlayers.map((p) => `P${p.id + 1}`).join(" ")
-        : undefined;
+      const targetPrefix = isTargeted
+        ? targetingPlayers.map((p) => `P${p.id + 1}`).join(" ") + " "
+        : "";
+
+      let stationText = "";
+      if (obj.id === "station-rice" && state.riceCooker) {
+        if (state.riceCooker.state === "cooking") {
+          stationText = `Kocht... (${state.riceCooker.cookTimeRemaining.toFixed(1)}s)`;
+        } else if (state.riceCooker.state === "ready") {
+          stationText = `Reis x${state.riceCooker.portions}`;
+        } else {
+          stationText = "Leer (Akt1: Start)";
+        }
+      } else if (obj.id === "station-roll" && state.rollStation) {
+        if (state.rollStation.items.length > 0) {
+          const itemIcons = state.rollStation.items
+            .map((item) => INGREDIENT_METADATA[item.ingredient].emoji)
+            .join(" ");
+          stationText = `[ ${itemIcons} ]`;
+        }
+      } else if (
+        obj.id === "counter-island" &&
+        state.counters?.["counter-island"]
+      ) {
+        const counterItems = state.counters["counter-island"].items;
+        if (counterItems.length > 0) {
+          const itemIcons = counterItems
+            .map((item) => INGREDIENT_METADATA[item.ingredient].emoji)
+            .join(" ");
+          stationText = `[ ${itemIcons} ]`;
+        }
+      } else if (obj.id === "station-fridge") {
+        if (isTargeted) {
+          const firstTargetPlayer = targetingPlayers[0];
+          const targetedIng = getFridgeIngredientForPlayerPos(
+            firstTargetPlayer.pos,
+            obj.pos,
+          );
+          stationText = `${INGREDIENT_METADATA[targetedIng].emoji} ${INGREDIENT_METADATA[targetedIng].label}`;
+        }
+      }
+
+      const badgeText = (targetPrefix + stationText).trim();
 
       commands.push({
         id: obj.id,
@@ -153,17 +195,47 @@ export class Renderer {
         depth: obj.pos.y + (meta.defaultDepthOffset ?? 0),
         sortOrder: 10 + i,
         highlightColor,
-        badge: targetLabel
+        badge: badgeText
           ? {
-              text: targetLabel,
-              color: highlightColor,
+              text: badgeText,
+              color: highlightColor ?? "#f8fafc",
               offsetY: -54,
             }
           : undefined,
       });
     }
 
-    // 2. Active Players
+    // 2. Dropped Items on Floor
+    if (state.droppedItems) {
+      for (let j = 0; j < state.droppedItems.length; j++) {
+        const dropped = state.droppedItems[j];
+        const ingMeta = INGREDIENT_METADATA[dropped.item.ingredient];
+        commands.push({
+          id: dropped.id,
+          worldX: dropped.pos.x,
+          worldY: dropped.pos.y,
+          width: 24,
+          height: 24,
+          anchorX: 0.5,
+          anchorY: 0.8,
+          depth: dropped.pos.y - 1,
+          sortOrder: 30 + j,
+          shadow: {
+            radiusX: 10,
+            radiusY: 4,
+            offsetY: 2,
+            opacity: 0.3,
+          },
+          badge: {
+            text: `${ingMeta.emoji} ${ingMeta.label}`,
+            color: "#ffffff",
+            offsetY: -16,
+          },
+        });
+      }
+    }
+
+    // 3. Active Players & Carried Items
     const chefSpriteIds: SpriteId[] = [
       "chef_p1",
       "chef_p2",
@@ -182,6 +254,10 @@ export class Renderer {
           ? "#38bdf8"
           : "#f43f5e"
         : undefined;
+
+      const playerBadge = player.carriedItem
+        ? `P${player.id + 1}: ${INGREDIENT_METADATA[player.carriedItem.ingredient].emoji} ${INGREDIENT_METADATA[player.carriedItem.ingredient].label}`
+        : `P${player.id + 1}`;
 
       commands.push({
         id: `player-${player.id}`,
@@ -203,9 +279,9 @@ export class Renderer {
         },
         highlightColor,
         badge: {
-          text: `P${player.id + 1}`,
-          color: player.color,
-          offsetY: 16,
+          text: playerBadge,
+          color: player.carriedItem ? "#fef08a" : player.color,
+          offsetY: player.carriedItem ? -42 : 16,
         },
       });
     }
@@ -324,14 +400,17 @@ export class Renderer {
       ctx.font = "16px system-ui, sans-serif";
       ctx.fillText("Küche bereit – Klicke auf Start", w / 2, h / 2);
     } else if (state.phase === "running" || state.phase === "paused") {
-      // HUD preview / Debug info in top-left corner
-      ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+      // HUD preview / info in top-left corner
+      const joined = state.players.filter((p) => p.joined);
+      const hudHeight = 58 + joined.length * 18;
+
+      ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
       if (typeof ctx.roundRect === "function") {
         ctx.beginPath();
-        ctx.roundRect(16, 16, 240, 68, 6);
+        ctx.roundRect(16, 16, 260, hudHeight, 6);
         ctx.fill();
       } else {
-        ctx.fillRect(16, 16, 240, 68);
+        ctx.fillRect(16, 16, 260, hudHeight);
       }
 
       ctx.fillStyle = "#a7f3d0";
@@ -341,10 +420,17 @@ export class Renderer {
       ctx.fillText(
         `Zeit: ${state.simulationTime.toFixed(1)}s | Ticks: ${state.tickCount}`,
         28,
-        54,
+        52,
       );
-      const joinedCount = state.players.filter((p) => p.joined).length;
-      ctx.fillText(`Aktive Köche: ${joinedCount}/4`, 28, 72);
+
+      for (let i = 0; i < joined.length; i++) {
+        const p = joined[i];
+        const itemText = p.carriedItem
+          ? `${INGREDIENT_METADATA[p.carriedItem.ingredient].emoji} ${INGREDIENT_METADATA[p.carriedItem.ingredient].label}`
+          : "leer";
+        ctx.fillStyle = p.color;
+        ctx.fillText(`P${p.id + 1}: ${itemText}`, 28, 70 + i * 18);
+      }
     }
   }
 }

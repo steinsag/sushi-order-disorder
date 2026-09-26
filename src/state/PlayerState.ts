@@ -6,6 +6,7 @@ import {
 } from "../input/PlayerInput";
 import { DEFAULT_PLAYER_RADIUS, moveAndSlide } from "../world/Collision";
 import type { ColliderAABB } from "../rules/StationConfig";
+import type { Item } from "./ItemState";
 
 export const DEFAULT_PLAYER_SPEED = 240; // World pixels per second
 
@@ -48,6 +49,7 @@ export interface PlayerState {
   color: string;
   input: PlayerInput;
   targetStationId?: string | null;
+  carriedItem: Item | null;
 }
 
 export function createPlayerState(
@@ -66,6 +68,7 @@ export function createPlayerState(
     color: PLAYER_COLORS[id],
     input: createNeutralPlayerInput(),
     targetStationId: null,
+    carriedItem: null,
   };
 }
 
