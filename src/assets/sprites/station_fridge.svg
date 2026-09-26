@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 64" width="96" height="64">
+  <!-- Shadow -->
+  <rect x="4" y="52" width="88" height="10" rx="4" fill="rgba(0,0,0,0.25)" />
+  <!-- Fridge Body (Stainless steel look) -->
+  <rect x="6" y="16" width="84" height="42" rx="3" fill="#cbd5e1" stroke="#475569" stroke-width="2" />
+  <polygon points="4,16 12,4 84,4 92,16" fill="#e2e8f0" stroke="#475569" stroke-width="2" />
+  <!-- Glass Window / Compartment doors -->
+  <rect x="12" y="20" width="32" height="34" rx="2" fill="#38bdf8" opacity="0.3" stroke="#0284c7" stroke-width="1.5" />
+  <rect x="52" y="20" width="32" height="34" rx="2" fill="#38bdf8" opacity="0.3" stroke="#0284c7" stroke-width="1.5" />
+  <!-- Handles -->
+  <rect x="40" y="28" width="2" height="18" rx="1" fill="#0f172a" />
+  <rect x="54" y="28" width="2" height="18" rx="1" fill="#0f172a" />
+  <!-- Ingredients mini icons inside glass -->
+  <!-- Salmon -->
+  <ellipse cx="20" cy="30" rx="5" ry="3" fill="#fb7185" />
+  <!-- Cucumber -->
+  <rect x="28" y="28" width="4" height="8" rx="1" fill="#4ade80" />
+  <!-- Avocado -->
+  <circle cx="62" cy="30" r="4" fill="#a3e635" />
+  <!-- Nori -->
+  <rect x="70" y="28" width="8" height="6" fill="#1e293b" />
+  <!-- Title / Sign -->
+  <text x="48" y="12" font-family="system-ui, sans-serif" font-size="8" font-weight="bold" fill="#0369a1" text-anchor="middle">KÜHLSCHRANK</text>
+</svg>

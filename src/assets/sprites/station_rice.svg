@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 64" width="96" height="64">
+  <!-- Base counter -->
+  <rect x="4" y="52" width="88" height="10" rx="4" fill="rgba(0,0,0,0.25)" />
+  <rect x="4" y="24" width="88" height="34" rx="2" fill="#78350f" stroke="#451a03" stroke-width="2" />
+  <polygon points="2,24 10,6 86,6 94,24" fill="#d97706" stroke="#451a03" stroke-width="2" />
+  <polygon points="4,23 11,8 85,8 92,23" fill="#f59e0b" />
+  <!-- Rice Cooker Appliance -->
+  <ellipse cx="48" cy="18" rx="22" ry="7" fill="rgba(0,0,0,0.2)" />
+  <!-- Cooker Pot -->
+  <path d="M 28 14 C 28 8 68 8 68 14 L 66 22 C 66 25 30 25 30 22 Z" fill="#e2e8f0" stroke="#475569" stroke-width="1.5" />
+  <!-- Lid -->
+  <path d="M 30 12 Q 48 4 66 12 Z" fill="#94a3b8" stroke="#334155" stroke-width="1.5" />
+  <circle cx="48" cy="7" r="3" fill="#dc2626" />
+  <!-- Steam -->
+  <path d="M 44 3 Q 42 0 44 -3" stroke="#f1f5f9" stroke-width="1.5" fill="none" opacity="0.8" stroke-linecap="round" />
+  <path d="M 52 2 Q 54 -1 52 -4" stroke="#f1f5f9" stroke-width="1.5" fill="none" opacity="0.8" stroke-linecap="round" />
+  <!-- Status light -->
+  <circle cx="48" cy="19" r="2" fill="#22c55e" />
+  <!-- Sign Text -->
+  <text x="48" y="46" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#fef08a" text-anchor="middle">REISKOCHER</text>
+</svg>
