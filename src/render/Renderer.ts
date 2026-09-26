@@ -163,9 +163,14 @@ export class Renderer {
 
       if (obj.id === "station-order" && state.orderStation) {
         if (state.orderStation.pendingOrder) {
+          const isExp = state.orderStation.pendingOrder.isExpress;
           stationText = isTargeted
-            ? "🛎️ Annehmen (Akt1)"
-            : "🛎️ Neue Bestellung!";
+            ? isExp
+              ? "⚡ Express Annehmen (Akt1)"
+              : "🛎️ Annehmen (Akt1)"
+            : isExp
+              ? "⚡ Neue Express-Bestellung!"
+              : "🛎️ Neue Bestellung!";
         } else {
           stationText = "Keine neue Bestellung";
         }

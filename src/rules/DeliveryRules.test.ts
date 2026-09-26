@@ -87,6 +87,44 @@ describe("DeliveryRules", () => {
     expect(outcome.updatedActiveOrders).toHaveLength(0);
   });
 
+  it("successfully delivers all four MVP recipes with correct points and icons", () => {
+    // 1. Gurken-Maki
+    const o1 = createActiveOrderFromPending(
+      createPendingOrder("o-1", "cucumber-maki"),
+    );
+    const res1 = evaluateDelivery(createPlateItem("cucumber-maki"), [o1]);
+    expect(res1.result.type).toBe("success");
+    expect(res1.result.scoreDelta).toBe(100);
+    expect(res1.result.message).toContain("🥒 Gurken-Maki");
+
+    // 2. Lachs-Nigiri
+    const o2 = createActiveOrderFromPending(
+      createPendingOrder("o-2", "salmon-nigiri"),
+    );
+    const res2 = evaluateDelivery(createPlateItem("salmon-nigiri"), [o2]);
+    expect(res2.result.type).toBe("success");
+    expect(res2.result.scoreDelta).toBe(100);
+    expect(res2.result.message).toContain("🍣 Lachs-Nigiri");
+
+    // 3. Lachs-Maki
+    const o3 = createActiveOrderFromPending(
+      createPendingOrder("o-3", "salmon-maki"),
+    );
+    const res3 = evaluateDelivery(createPlateItem("salmon-maki"), [o3]);
+    expect(res3.result.type).toBe("success");
+    expect(res3.result.scoreDelta).toBe(120);
+    expect(res3.result.message).toContain("🐟 Lachs-Maki");
+
+    // 4. Avocado-Maki
+    const o4 = createActiveOrderFromPending(
+      createPendingOrder("o-4", "avocado-maki"),
+    );
+    const res4 = evaluateDelivery(createPlateItem("avocado-maki"), [o4]);
+    expect(res4.result.type).toBe("success");
+    expect(res4.result.scoreDelta).toBe(110);
+    expect(res4.result.message).toContain("🥑 Avocado-Maki");
+  });
+
   it("selects the most urgent order when multiple matching orders are active", () => {
     const order1: ActiveOrder = {
       id: "order-1",
@@ -112,5 +150,57 @@ describe("DeliveryRules", () => {
     expect(outcome.result.matchedOrder?.id).toBe("order-2"); // Most urgent (10s remaining)
     expect(outcome.updatedActiveOrders).toHaveLength(1);
     expect(outcome.updatedActiveOrders[0].id).toBe("order-1");
+  });
+
+  it("prioritizes express order when time remaining is identical", () => {
+    const regularOrder: ActiveOrder = {
+      id: "ord-regular",
+      recipeId: "salmon-maki",
+      totalTime: 45,
+      timeRemaining: 20,
+      isExpress: false,
+      status: "active",
+    };
+    const expressOrder: ActiveOrder = {
+      id: "ord-express",
+      recipeId: "salmon-maki",
+      totalTime: 30,
+      timeRemaining: 20,
+      isExpress: true,
+      status: "active",
+    };
+    const plate = createPlateItem("salmon-maki");
+
+    const outcome = evaluateDelivery(plate, [regularOrder, expressOrder]);
+
+    expect(outcome.result.type).toBe("success");
+    expect(outcome.result.matchedOrder?.id).toBe("ord-express");
+    expect(outcome.result.scoreDelta).toBe(180); // 120 * 1.5
+    expect(outcome.result.message).toContain("⚡ 🐟 Lachs-Maki");
+    expect(outcome.updatedActiveOrders).toHaveLength(1);
+    expect(outcome.updatedActiveOrders[0].id).toBe("ord-regular");
+  });
+
+  it("fulfills only matching recipe among diverse parallel orders", () => {
+    const order1 = createActiveOrderFromPending(
+      createPendingOrder("o-nigiri", "salmon-nigiri"),
+    );
+    const order2 = createActiveOrderFromPending(
+      createPendingOrder("o-maki", "salmon-maki"),
+    );
+    const order3 = createActiveOrderFromPending(
+      createPendingOrder("o-avocado", "avocado-maki"),
+    );
+
+    const plate = createPlateItem("salmon-maki");
+    const outcome = evaluateDelivery(plate, [order1, order2, order3]);
+
+    expect(outcome.result.type).toBe("success");
+    expect(outcome.result.matchedOrder?.id).toBe("o-maki");
+    expect(outcome.updatedActiveOrders).toHaveLength(2);
+    expect(outcome.updatedActiveOrders.map((o) => o.id)).toEqual([
+      "o-nigiri",
+      "o-avocado",
+    ]);
   });
 });

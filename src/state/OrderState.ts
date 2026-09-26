@@ -1,6 +1,7 @@
 import {
-  DEFAULT_ORDER_DURATION,
+  ALL_RECIPE_IDS,
   DEFAULT_RECIPE_ID,
+  getRecipeDefinition,
   type RecipeId,
 } from "../rules/RecipeConfig";
 
@@ -41,9 +42,37 @@ export function generateOrderId(): string {
 export function createPendingOrder(
   id = generateOrderId(),
   recipeId: RecipeId = DEFAULT_RECIPE_ID,
-  totalTime = DEFAULT_ORDER_DURATION,
+  totalTime?: number,
   isExpress = false,
 ): PendingOrder {
+  const duration =
+    totalTime ??
+    (isExpress
+      ? Math.round(getRecipeDefinition(recipeId).baseDuration * 0.75)
+      : getRecipeDefinition(recipeId).baseDuration);
+
+  return {
+    id,
+    recipeId,
+    totalTime: duration,
+    isExpress,
+  };
+}
+
+export function createRandomPendingOrder(
+  id = generateOrderId(),
+  availableRecipes: readonly RecipeId[] = ALL_RECIPE_IDS,
+  expressChance = 0.25,
+  randomFn: () => number = Math.random,
+): PendingOrder {
+  const recipeIndex = Math.floor(randomFn() * availableRecipes.length);
+  const recipeId = availableRecipes[recipeIndex] ?? DEFAULT_RECIPE_ID;
+  const isExpress = randomFn() < expressChance;
+  const recipe = getRecipeDefinition(recipeId);
+  const totalTime = isExpress
+    ? Math.round(recipe.baseDuration * 0.75)
+    : recipe.baseDuration;
+
   return {
     id,
     recipeId,

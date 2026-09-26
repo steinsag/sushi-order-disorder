@@ -14,6 +14,10 @@ import {
   createPlateItem,
   type IngredientItem,
 } from "../state/ItemState";
+import {
+  createActiveOrderFromPending,
+  createPendingOrder,
+} from "../state/OrderState";
 import { createInitialRiceCookerState } from "../state/StationState";
 
 describe("InteractionRules", () => {
@@ -1315,6 +1319,353 @@ describe("InteractionRules", () => {
       expect(state.scoreState.totalScore).toBe(100);
       expect(state.scoreState.completedOrders).toBe(1);
       expect(state.scoreState.onTimeOrders).toBe(1);
+    });
+
+    it("complete gameplay flow for salmon-nigiri (rice + salmon)", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+        activeOrders: [
+          createActiveOrderFromPending(
+            createPendingOrder("ord-nigiri", "salmon-nigiri"),
+          ),
+        ],
+        riceCooker: {
+          ...createInitialWorldState().riceCooker,
+          state: "ready",
+          portions: 3,
+        },
+      };
+
+      // 1. P0 takes rice and places on roll station
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-rice",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.players[0].carriedItem?.type).toBe("ingredient");
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.rollStation.items).toHaveLength(1);
+
+      // 2. P0 takes salmon from fridge and places on roll station
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 590, y: 160 }, // Salmon pos in fridge
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-fridge",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect((state.players[0].carriedItem as IngredientItem)?.ingredient).toBe(
+        "salmon",
+      );
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.rollStation.items).toHaveLength(2);
+
+      // 3. Roll salmon-nigiri
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.rollStation.state).toBe("rolling");
+      expect(state.rollStation.rollingRecipeId).toBe("salmon-nigiri");
+
+      // Advance roll timer
+      for (let i = 0; i < 130; i++) {
+        state = updateWorldState(state, 1 / 60);
+      }
+      expect(state.rollStation.state).toBe("idle");
+      expect(
+        (state.rollStation.items[0] as { recipeId: string }).recipeId,
+      ).toBe("salmon-nigiri");
+
+      // 4. Deliver salmon-nigiri
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 760, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-delivery",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      expect(state.activeOrders).toHaveLength(0);
+      expect(state.scoreState.totalScore).toBe(100);
+      expect(state.scoreState.recentFeedback?.type).toBe("success");
+    });
+
+    it("complete gameplay flow for avocado-maki (nori + rice + avocado)", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+        activeOrders: [
+          createActiveOrderFromPending(
+            createPendingOrder("ord-avocado", "avocado-maki"),
+          ),
+        ],
+        riceCooker: {
+          ...createInitialWorldState().riceCooker,
+          state: "ready",
+          portions: 3,
+        },
+      };
+
+      // 1. Place rice
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-rice",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      // 2. Place nori
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 560, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-fridge",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      // 3. Place avocado
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 640, y: 160 }, // Avocado pos in fridge
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-fridge",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect((state.players[0].carriedItem as IngredientItem)?.ingredient).toBe(
+        "avocado",
+      );
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      // 4. Roll avocado-maki
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.rollStation.state).toBe("rolling");
+      expect(state.rollStation.rollingRecipeId).toBe("avocado-maki");
+
+      for (let i = 0; i < 130; i++) {
+        state = updateWorldState(state, 1 / 60);
+      }
+      expect(
+        (state.rollStation.items[0] as { recipeId: string }).recipeId,
+      ).toBe("avocado-maki");
+
+      // 5. Deliver
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 760, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-delivery",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      expect(state.activeOrders).toHaveLength(0);
+      expect(state.scoreState.totalScore).toBe(110);
+    });
+
+    it("manages multiple parallel orders and accepts up to 3 orders at counter", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+        orderStation: {
+          pendingOrder: createPendingOrder("ord-1", "cucumber-maki", 45),
+          nextSpawnTimer: 0,
+          totalOrdersSpawned: 1,
+        },
+        activeOrders: [],
+      };
+
+      // Player 0 at order station accepts ord-1
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 160, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-order",
+      };
+
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      expect(state.activeOrders).toHaveLength(1);
+      expect(state.activeOrders[0].id).toBe("ord-1");
+      expect(state.orderStation.pendingOrder).toBeNull();
+
+      // Fast forward spawn delay (4 seconds) with neutral inputs (button released)
+      const neutralInputs = [
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      for (let i = 0; i < 250; i++) {
+        state = updateWorldState(state, 1 / 60, neutralInputs);
+      }
+      expect(state.orderStation.pendingOrder).not.toBeNull();
+
+      // Accept second order
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.activeOrders).toHaveLength(2);
+
+      // Fast forward spawn delay again with neutral inputs
+      for (let i = 0; i < 250; i++) {
+        state = updateWorldState(state, 1 / 60, neutralInputs);
+      }
+      expect(state.orderStation.pendingOrder).not.toBeNull();
+
+      // Accept third order
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.activeOrders).toHaveLength(3);
+
+      // Verify that when delivering one order, only that order is completed
+      const plate = createPlateItem(state.activeOrders[0].recipeId);
+      state.players[0] = {
+        ...state.players[0],
+        carriedItem: plate,
+        pos: { x: 760, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-delivery",
+      };
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      expect(state.activeOrders).toHaveLength(2);
+      expect(state.scoreState.completedOrders).toBe(1);
     });
   });
 });

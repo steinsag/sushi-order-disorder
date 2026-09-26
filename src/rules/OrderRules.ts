@@ -1,19 +1,28 @@
 import {
-  DEFAULT_ORDER_DURATION,
+  ALL_RECIPE_IDS,
   DEFAULT_ORDER_SPAWN_DELAY,
-  DEFAULT_RECIPE_ID,
+  type RecipeId,
 } from "./RecipeConfig";
 import {
   type ActiveOrder,
   createActiveOrderFromPending,
-  createPendingOrder,
+  createRandomPendingOrder,
   generateOrderId,
   type OrderStationState,
 } from "../state/OrderState";
 
+export const DEFAULT_MAX_ACTIVE_ORDERS = 3;
+export const DEFAULT_EXPRESS_CHANCE = 0.25;
+
 export interface OrderAdvanceResult {
   readonly orderStation: OrderStationState;
   readonly activeOrders: readonly ActiveOrder[];
+}
+
+export interface OrderSpawnOptions {
+  readonly availableRecipes?: readonly RecipeId[];
+  readonly expressChance?: number;
+  readonly randomFn?: () => number;
 }
 
 export function advanceActiveOrders(
@@ -40,7 +49,8 @@ export function advanceOrderStationState(
   stationState: OrderStationState,
   activeOrderCount: number,
   dt: number,
-  maxActiveOrders = 1,
+  maxActiveOrders: number = DEFAULT_MAX_ACTIVE_ORDERS,
+  options?: OrderSpawnOptions,
 ): OrderStationState {
   // If an order is already waiting at the counter, no timer needed
   if (stationState.pendingOrder !== null) {
@@ -56,12 +66,16 @@ export function advanceOrderStationState(
   const nextTimer = Math.max(0, stationState.nextSpawnTimer - dt);
 
   if (nextTimer <= 0) {
-    // Spawn new pending order
-    const newOrder = createPendingOrder(
+    // Spawn new pending order from available recipes
+    const availableRecipes = options?.availableRecipes ?? ALL_RECIPE_IDS;
+    const expressChance = options?.expressChance ?? DEFAULT_EXPRESS_CHANCE;
+    const randomFn = options?.randomFn ?? Math.random;
+
+    const newOrder = createRandomPendingOrder(
       generateOrderId(),
-      DEFAULT_RECIPE_ID,
-      DEFAULT_ORDER_DURATION,
-      false,
+      availableRecipes,
+      expressChance,
+      randomFn,
     );
 
     return {
@@ -80,7 +94,7 @@ export function advanceOrderStationState(
 export function acceptOrderAtCounter(
   stationState: OrderStationState,
   activeOrders: readonly ActiveOrder[],
-  maxActiveOrders = 1,
+  maxActiveOrders: number = DEFAULT_MAX_ACTIVE_ORDERS,
 ): {
   orderStation: OrderStationState;
   activeOrders: readonly ActiveOrder[];

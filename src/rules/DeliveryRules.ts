@@ -30,7 +30,7 @@ export function evaluateDelivery(
   carriedPlate: PlateItem,
   activeOrders: readonly ActiveOrder[],
 ): DeliveryOutcome {
-  // 1. Search for an on-time matching order (lowest timeRemaining first)
+  // 1. Search for an on-time matching order (lowest timeRemaining first, then express)
   const onTimeMatches = activeOrders
     .filter(
       (o) =>
@@ -38,7 +38,13 @@ export function evaluateDelivery(
         o.status === "active" &&
         o.timeRemaining > 0,
     )
-    .sort((a, b) => a.timeRemaining - b.timeRemaining);
+    .sort((a, b) => {
+      const timeDiff = a.timeRemaining - b.timeRemaining;
+      if (Math.abs(timeDiff) > 0.001) {
+        return timeDiff;
+      }
+      return (b.isExpress ? 1 : 0) - (a.isExpress ? 1 : 0);
+    });
 
   if (onTimeMatches.length > 0) {
     const matchedOrder = onTimeMatches[0];
@@ -48,7 +54,8 @@ export function evaluateDelivery(
       true,
       matchedOrder.isExpress,
     );
-    const message = `${recipe.emoji} ${recipe.name} pünktlich geliefert! (+${scoreDelta})`;
+    const expressPrefix = matchedOrder.isExpress ? "⚡ " : "";
+    const message = `${expressPrefix}${recipe.emoji} ${recipe.name} pünktlich geliefert! (+${scoreDelta})`;
 
     return {
       result: {
@@ -63,11 +70,13 @@ export function evaluateDelivery(
   }
 
   // 2. Search for an expired / late matching order
-  const lateMatches = activeOrders.filter(
-    (o) =>
-      o.recipeId === carriedPlate.recipeId &&
-      (o.status === "expired" || o.timeRemaining <= 0),
-  );
+  const lateMatches = activeOrders
+    .filter(
+      (o) =>
+        o.recipeId === carriedPlate.recipeId &&
+        (o.status === "expired" || o.timeRemaining <= 0),
+    )
+    .sort((a, b) => (b.isExpress ? 1 : 0) - (a.isExpress ? 1 : 0));
 
   if (lateMatches.length > 0) {
     const matchedOrder = lateMatches[0];
