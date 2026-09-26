@@ -1,0 +1,38 @@
+name: Test and Build
+
+on:
+  workflow_call:
+    inputs:
+      upload-pages-artifact:
+        description: "Upload dist directory as GitHub Pages artifact"
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run checks and tests
+        run: npm run check
+
+      - name: Build project
+        run: npm run build
+
+      - name: Upload Pages artifact
+        if: ${{ inputs.upload-pages-artifact }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
