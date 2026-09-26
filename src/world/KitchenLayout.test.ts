@@ -79,8 +79,8 @@ describe("Kitchen Layout & Reachability", () => {
     // Approach points for each station that are within reach
     const approachPoints: Record<string, { approach: Vec2; facing: Vec2 }> = {
       "station-order": {
-        approach: { x: 160, y: 160 },
-        facing: { x: 0, y: -1 },
+        approach: { x: 160, y: 390 },
+        facing: { x: 0, y: 1 },
       },
       "station-rice": {
         approach: { x: 380, y: 160 },

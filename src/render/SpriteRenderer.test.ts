@@ -163,4 +163,60 @@ describe("SpriteRenderer and Depth Sorting", () => {
     expect(drawnCalls[0].w).toBe(48);
     expect(drawnCalls[0].h).toBe(48);
   });
+
+  it("renders progress bar and badge pill without crashing", () => {
+    const camera = new Camera({ width: 800, height: 600 });
+    camera.setPosition({ x: 400, y: 300 }, true);
+
+    const mockCtx = {
+      save: () => {},
+      restore: () => {},
+      beginPath: () => {},
+      closePath: () => {},
+      moveTo: () => {},
+      lineTo: () => {},
+      arcTo: () => {},
+      fill: () => {},
+      stroke: () => {},
+      rect: () => {},
+      fillRect: () => {},
+      strokeRect: () => {},
+      drawImage: () => {},
+      fillText: () => {},
+      measureText: (text: string) => ({ width: text.length * 8 }),
+      font: "",
+      fillStyle: "",
+      strokeStyle: "",
+      lineWidth: 1,
+      textAlign: "center",
+      textBaseline: "middle",
+    } as unknown as CanvasRenderingContext2D;
+
+    expect(() =>
+      drawSprite(
+        mockCtx,
+        {
+          id: "station-rice",
+          worldX: 380,
+          worldY: 110,
+          width: 96,
+          height: 64,
+          anchorX: 0.5,
+          anchorY: 0.9,
+          progressBar: {
+            progress: 0.65,
+            label: "♨️ 3.2s",
+            fillColor: "#f59e0b",
+            offsetY: -56,
+          },
+          badge: {
+            text: "♨️ Kocht... (3.2s)",
+            color: "#fbbf24",
+            offsetY: -74,
+          },
+        },
+        camera,
+      ),
+    ).not.toThrow();
+  });
 });

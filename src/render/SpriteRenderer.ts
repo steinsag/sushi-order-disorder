@@ -7,6 +7,17 @@ export interface SpriteShadow {
   opacity?: number;
 }
 
+export interface SpriteProgressBar {
+  progress: number; // 0 to 1
+  label?: string;
+  fillColor?: string;
+  bgColor?: string;
+  borderColor?: string;
+  width?: number;
+  height?: number;
+  offsetY?: number;
+}
+
 export interface SpriteRenderCommand {
   id: string;
   image?: CanvasImageSource | null;
@@ -36,6 +47,8 @@ export interface SpriteRenderCommand {
   shadow?: SpriteShadow;
   /** Highlight / Action ring color */
   highlightColor?: string;
+  /** Progress bar (e.g. rice cooking) */
+  progressBar?: SpriteProgressBar;
   /** Badge / text label */
   badge?: {
     text: string;
@@ -64,6 +77,33 @@ export function sortSprites(
     }
     return a.id.localeCompare(b.id);
   });
+}
+
+function drawRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  radius: number,
+): void {
+  if (typeof ctx.roundRect === "function") {
+    ctx.beginPath();
+    ctx.roundRect(x, y, Math.max(0, w), Math.max(0, h), radius);
+  } else if (typeof ctx.arcTo === "function") {
+    const r = Math.min(radius, Math.max(0, w) / 2, Math.max(0, h) / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  } else {
+    ctx.beginPath();
+    ctx.rect(x, y, Math.max(0, w), Math.max(0, h));
+  }
 }
 
 /**
@@ -157,13 +197,82 @@ export function drawSprite(
     ctx.restore();
   }
 
+  // Progress bar (e.g. rice cooking progress)
+  if (cmd.progressBar) {
+    const pb = cmd.progressBar;
+    const progress = Math.max(0, Math.min(1, pb.progress));
+    const barW = (pb.width ?? 68) * zoom;
+    const barH = (pb.height ?? 10) * zoom;
+    const barX = screenPos.x - barW / 2;
+    const barY = screenPos.y + (pb.offsetY ?? -58) * zoom;
+    const radius = barH / 2;
+
+    ctx.save();
+    // Shadow / backdrop
+    ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+    drawRoundedRect(ctx, barX - 2, barY - 2, barW + 4, barH + 4, radius + 2);
+    ctx.fill();
+
+    // Background track
+    ctx.fillStyle = pb.bgColor ?? "#27272a";
+    drawRoundedRect(ctx, barX, barY, barW, barH, radius);
+    ctx.fill();
+
+    // Progress fill
+    if (progress > 0) {
+      const fillW = Math.max(barH, barW * progress);
+      ctx.fillStyle = pb.fillColor ?? "#f59e0b";
+      drawRoundedRect(ctx, barX, barY, Math.min(barW, fillW), barH, radius);
+      ctx.fill();
+    }
+
+    // Border
+    ctx.strokeStyle = pb.borderColor ?? "rgba(255, 255, 255, 0.5)";
+    ctx.lineWidth = Math.max(1, 1.2 * zoom);
+    drawRoundedRect(ctx, barX, barY, barW, barH, radius);
+    ctx.stroke();
+
+    // Label if present
+    if (pb.label) {
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `bold ${Math.max(9, Math.round(9.5 * zoom))}px system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(pb.label, screenPos.x, barY + barH / 2);
+    }
+    ctx.restore();
+  }
+
   // Badge / text
   if (cmd.badge) {
     ctx.save();
-    ctx.fillStyle = cmd.badge.color ?? "#ffffff";
-    ctx.font = `bold ${Math.max(10, Math.round(11 * zoom))}px system-ui, sans-serif`;
+    const fontSize = Math.max(10, Math.round(11 * zoom));
+    ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
     ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     const badgeY = screenPos.y + (cmd.badge.offsetY ?? 16) * zoom;
+
+    const metrics = ctx.measureText
+      ? ctx.measureText(cmd.badge.text)
+      : { width: cmd.badge.text.length * 7 };
+    const textW = metrics.width;
+    const paddingX = 6 * zoom;
+    const pillH = fontSize + 6 * zoom;
+    const pillW = textW + paddingX * 2;
+    const pillX = screenPos.x - pillW / 2;
+    const pillY = badgeY - pillH / 2;
+    const pillRadius = Math.min(6 * zoom, pillH / 2);
+
+    ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+    drawRoundedRect(ctx, pillX, pillY, pillW, pillH, pillRadius);
+    ctx.fill();
+
+    ctx.strokeStyle = cmd.badge.color ?? "rgba(255, 255, 255, 0.25)";
+    ctx.lineWidth = Math.max(1, 1 * zoom);
+    drawRoundedRect(ctx, pillX, pillY, pillW, pillH, pillRadius);
+    ctx.stroke();
+
+    ctx.fillStyle = cmd.badge.color ?? "#ffffff";
     ctx.fillText(cmd.badge.text, screenPos.x, badgeY);
     ctx.restore();
   }

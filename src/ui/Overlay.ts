@@ -1,6 +1,7 @@
 import type { WorldState } from "../state/WorldState";
 import type { PlayerIndex } from "../input/PlayerInput";
 import { INGREDIENT_METADATA } from "../rules/IngredientConfig";
+import { getRecipeDefinition } from "../rules/RecipeConfig";
 
 export interface OverlayCallbacks {
   onStart: () => void;
@@ -114,6 +115,74 @@ export class Overlay {
         break;
 
       case "running": {
+        // 1. Render active orders & recipe cards
+        let ordersHtml: string;
+        if (state.activeOrders && state.activeOrders.length > 0) {
+          ordersHtml = state.activeOrders
+            .map((order) => {
+              const recipe = getRecipeDefinition(order.recipeId);
+              const pct = Math.max(
+                0,
+                Math.min(100, (order.timeRemaining / order.totalTime) * 100),
+              );
+              const isUrgent = order.timeRemaining <= 10;
+              const isExpired =
+                order.status === "expired" || order.timeRemaining <= 0;
+              const timeClass = isExpired
+                ? "time-expired"
+                : isUrgent
+                  ? "time-urgent"
+                  : "time-normal";
+
+              const ingredientsHtml = recipe.ingredients
+                .map((ing) => {
+                  const meta = INGREDIENT_METADATA[ing];
+                  return `
+                    <span class="recipe-ingredient-tag" title="${meta.label}">
+                      <span class="ing-emoji">${meta.emoji}</span>
+                      <span class="ing-label">${meta.label}</span>
+                    </span>
+                  `;
+                })
+                .join("");
+
+              return `
+                <div class="recipe-card ${isExpired ? "card-expired" : ""} ${order.isExpress ? "card-express" : ""}" data-order-id="${order.id}">
+                  <div class="recipe-card-header">
+                    <span class="recipe-title">${recipe.emoji} ${recipe.name}</span>
+                    ${order.isExpress ? '<span class="express-badge">⚡ Express</span>' : ""}
+                  </div>
+                  <div class="recipe-ingredients-list">
+                    ${ingredientsHtml}
+                  </div>
+                  <div class="recipe-timer-wrapper">
+                    <div class="recipe-timer-bar">
+                      <div class="recipe-timer-fill ${timeClass}" style="width: ${pct}%;"></div>
+                    </div>
+                    <span class="recipe-timer-text ${timeClass}">
+                      ${isExpired ? "Abgelaufen" : `${Math.ceil(order.timeRemaining)}s`}
+                    </span>
+                  </div>
+                </div>
+              `;
+            })
+            .join("");
+        } else if (state.orderStation?.pendingOrder) {
+          ordersHtml = `
+            <div class="pending-order-banner">
+              <span class="bell-icon">🛎️</span>
+              <span class="banner-text">Neue Bestellung an der Bestellannahme bereit! (Akt1)</span>
+            </div>
+          `;
+        } else {
+          ordersHtml = `
+            <div class="pending-order-banner empty-banner">
+              <span class="banner-text">Warte auf Gäste...</span>
+            </div>
+          `;
+        }
+
+        // 2. Render player status badges
         const joinedPlayersHtml = state.players
           .map((p) => {
             if (!p.joined) return "";
@@ -130,11 +199,18 @@ export class Overlay {
           .join("");
 
         html = `
-          <div class="hud-bar">
+          <div class="hud-top-bar">
+            <div class="hud-orders-container">
+              ${ordersHtml}
+            </div>
+            <div class="hud-controls">
+              <button id="btn-pause" class="btn btn-small">Pause (Esc)</button>
+            </div>
+          </div>
+          <div class="hud-bottom-bar">
             <div class="hud-players-list">
               ${joinedPlayersHtml}
             </div>
-            <button id="btn-pause" class="btn btn-small">Pause (Esc)</button>
           </div>
         `;
         break;

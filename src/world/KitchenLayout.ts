@@ -21,10 +21,10 @@ export const DEFAULT_STATIONS: readonly StationDefinition[] = [
     type: "order",
     label: "Bestellannahme",
     spriteId: "station_order",
-    pos: { x: 160, y: 110 },
-    interactionPoint: { x: 160, y: 120 },
+    pos: { x: 160, y: 440 },
+    interactionPoint: { x: 160, y: 430 },
     interactionRadius: DEFAULT_INTERACTION_RADIUS,
-    collider: createStationCollider(160, 110),
+    collider: createStationCollider(160, 440),
     isInteractable: true,
   },
   {

@@ -1,7 +1,11 @@
 import type { WorldState } from "../state/WorldState";
 import { Camera } from "./Camera";
 import { AssetLoader } from "./AssetLoader";
-import { type SpriteRenderCommand, renderSpriteScene } from "./SpriteRenderer";
+import {
+  type SpriteProgressBar,
+  type SpriteRenderCommand,
+  renderSpriteScene,
+} from "./SpriteRenderer";
 import { SPRITE_METADATA, SPRITE_URLS, type SpriteId } from "./SpriteAssets";
 import type { Vec2 } from "../math/vec2";
 import { DEFAULT_STATIONS } from "../world/KitchenLayout";
@@ -144,13 +148,40 @@ export class Renderer {
         : "";
 
       let stationText = "";
-      if (obj.id === "station-rice" && state.riceCooker) {
-        if (state.riceCooker.state === "cooking") {
-          stationText = `Kocht... (${state.riceCooker.cookTimeRemaining.toFixed(1)}s)`;
-        } else if (state.riceCooker.state === "ready") {
-          stationText = `Reis x${state.riceCooker.portions}`;
+      let stationProgressBar: SpriteProgressBar | undefined = undefined;
+
+      if (obj.id === "station-order" && state.orderStation) {
+        if (state.orderStation.pendingOrder) {
+          stationText = isTargeted
+            ? "🛎️ Annehmen (Akt1)"
+            : "🛎️ Neue Bestellung!";
         } else {
-          stationText = "Leer (Akt1: Start)";
+          stationText = "Keine neue Bestellung";
+        }
+      } else if (obj.id === "station-rice" && state.riceCooker) {
+        const rc = state.riceCooker;
+        if (rc.state === "cooking") {
+          stationText = `♨️ Kocht... (${rc.cookTimeRemaining.toFixed(1)}s)`;
+          stationProgressBar = {
+            progress: rc.cookingProgress,
+            label: `♨️ ${rc.cookTimeRemaining.toFixed(1)}s`,
+            fillColor: "#f59e0b",
+            bgColor: "#27272a",
+            borderColor: "rgba(255, 255, 255, 0.4)",
+            offsetY: -56,
+            width: 72,
+            height: 12,
+          };
+        } else if (rc.state === "ready" && rc.portions > 0) {
+          const portionDots =
+            "●".repeat(rc.portions) + "○".repeat(rc.maxPortions - rc.portions);
+          stationText = isTargeted
+            ? `🍚 Nehmen (Akt1) [${portionDots}]`
+            : `🍚 Reis [${portionDots}] (${rc.portions}/${rc.maxPortions})`;
+        } else {
+          stationText = isTargeted
+            ? "🍚 Kochen starten (Akt1)"
+            : "🍚 Reiskocher leer (Akt1)";
         }
       } else if (obj.id === "station-roll" && state.rollStation) {
         if (state.rollStation.items.length > 0) {
@@ -181,6 +212,7 @@ export class Renderer {
         }
       }
 
+      const badgeOffsetY = stationProgressBar ? -74 : -54;
       const badgeText = (targetPrefix + stationText).trim();
 
       commands.push({
@@ -195,11 +227,13 @@ export class Renderer {
         depth: obj.pos.y + (meta.defaultDepthOffset ?? 0),
         sortOrder: 10 + i,
         highlightColor,
+        progressBar: stationProgressBar,
         badge: badgeText
           ? {
               text: badgeText,
-              color: highlightColor ?? "#f8fafc",
-              offsetY: -54,
+              color:
+                highlightColor ?? (stationProgressBar ? "#fbbf24" : "#f8fafc"),
+              offsetY: badgeOffsetY,
             }
           : undefined,
       });

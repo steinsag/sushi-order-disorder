@@ -18,7 +18,7 @@ export interface RiceCookerStationState {
 }
 
 export function createInitialRiceCookerState(
-  initialPortions = DEFAULT_RICE_MAX_PORTIONS,
+  initialPortions = 0,
   cookTime = DEFAULT_RICE_COOK_TIME,
 ): RiceCookerStationState {
   const isReady = initialPortions > 0;

@@ -5,11 +5,11 @@ import type { StationDefinition } from "../rules/StationConfig";
 
 describe("Interaction Target Selection", () => {
   it("selects nearest station when within reach", () => {
-    // station-order is at pos (160, 110), interactionPoint (160, 120)
+    // station-order is at pos (160, 440), interactionPoint (160, 430)
     const target = findInteractionTarget(
       {
-        pos: { x: 160, y: 160 },
-        facing: { x: 0, y: -1 }, // facing up towards order counter
+        pos: { x: 160, y: 390 },
+        facing: { x: 0, y: 1 }, // facing down towards order counter
         joined: true,
       },
       DEFAULT_STATIONS,

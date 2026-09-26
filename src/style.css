@@ -248,20 +248,190 @@ body {
   background-color: rgba(55, 65, 81, 0.95);
 }
 
-.hud-bar {
+.hud-top-bar {
   position: absolute;
-  top: 16px;
+  top: 12px;
+  left: 16px;
   right: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+  gap: 16px;
+  z-index: 10;
+}
+
+.hud-orders-container {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
   pointer-events: auto;
+}
+
+.hud-controls {
+  pointer-events: auto;
+}
+
+.recipe-card {
+  background: rgba(24, 26, 35, 0.94);
+  border: 2px solid #3b82f6;
+  border-radius: 10px;
+  padding: 8px 12px;
+  min-width: 200px;
+  max-width: 260px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recipe-card.card-expired {
+  border-color: #ef4444;
+  background: rgba(40, 20, 25, 0.94);
+}
+
+.recipe-card.card-express {
+  border-color: #f59e0b;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+}
+
+.recipe-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.recipe-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.express-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: #f59e0b;
+  color: #000;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.recipe-ingredients-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.recipe-ingredient-tag {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #e2e8f0;
+}
+
+.recipe-timer-wrapper {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.recipe-timer-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.recipe-timer-fill {
+  height: 100%;
+  transition:
+    width 0.1s linear,
+    background-color 0.3s ease;
+}
+
+.recipe-timer-fill.time-normal {
+  background-color: #22c55e;
+}
+
+.recipe-timer-fill.time-urgent {
+  background-color: #f59e0b;
+}
+
+.recipe-timer-fill.time-expired {
+  background-color: #ef4444;
+}
+
+.recipe-timer-text {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 30px;
+  text-align: right;
+}
+
+.recipe-timer-text.time-normal {
+  color: #22c55e;
+}
+
+.recipe-timer-text.time-urgent {
+  color: #f59e0b;
+}
+
+.recipe-timer-text.time-expired {
+  color: #ef4444;
+}
+
+.pending-order-banner {
+  background: rgba(30, 41, 59, 0.92);
+  border: 1px dashed #64748b;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+  backdrop-filter: blur(4px);
+}
+
+.pending-order-banner.empty-banner {
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+}
+
+.hud-bottom-bar {
+  position: absolute;
+  bottom: 14px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  pointer-events: auto;
+  z-index: 10;
 }
 
 .hud-players-list {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .hud-player-badge {

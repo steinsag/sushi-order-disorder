@@ -21,6 +21,11 @@ import {
   type RollStationState,
 } from "./StationState";
 import {
+  type ActiveOrder,
+  createInitialOrderStationState,
+  type OrderStationState,
+} from "./OrderState";
+import {
   advanceStationTimers,
   processPlayerInteractions,
 } from "../rules/InteractionRules";
@@ -35,6 +40,8 @@ export interface WorldState {
   bounds: KitchenBounds;
   stations: readonly StationDefinition[];
   obstacles: readonly ColliderAABB[];
+  orderStation: OrderStationState;
+  activeOrders: readonly ActiveOrder[];
   riceCooker: RiceCookerStationState;
   fridge: FridgeStationState;
   rollStation: RollStationState;
@@ -57,6 +64,8 @@ export function createInitialWorldState(): WorldState {
     bounds: DEFAULT_KITCHEN_BOUNDS,
     stations: DEFAULT_STATIONS,
     obstacles: getStationColliders(DEFAULT_STATIONS),
+    orderStation: createInitialOrderStationState(),
+    activeOrders: [],
     riceCooker: createInitialRiceCookerState(),
     fridge: createInitialFridgeState(),
     rollStation: createInitialRollStationState(),

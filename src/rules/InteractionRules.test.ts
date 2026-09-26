@@ -10,6 +10,7 @@ import {
   getFridgeIngredientForPlayerPos,
 } from "./InteractionRules";
 import { createIngredientItem } from "../state/ItemState";
+import { createInitialRiceCookerState } from "../state/StationState";
 
 describe("InteractionRules", () => {
   describe("Fridge compartment selection", () => {
@@ -84,10 +85,43 @@ describe("InteractionRules", () => {
   });
 
   describe("Rice Cooker State & Cooking", () => {
+    it("starts empty by default and can be started via action1", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      expect(state.riceCooker.state).toBe("empty");
+      expect(state.riceCooker.portions).toBe(0);
+
+      // Position P0 at rice cooker
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-rice",
+        carriedItem: null,
+      };
+
+      const inputs = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, inputs);
+      expect(state.riceCooker.state).toBe("cooking");
+      expect(state.riceCooker.cookTimeRemaining).toBe(
+        state.riceCooker.totalCookTime,
+      );
+    });
+
     it("dispenses rice when ready and decrements portions", () => {
       let state: WorldState = {
         ...createInitialWorldState(),
         phase: "running",
+        riceCooker: createInitialRiceCookerState(4),
       };
 
       expect(state.riceCooker.state).toBe("ready");
@@ -112,6 +146,34 @@ describe("InteractionRules", () => {
       state = updateWorldState(state, 1 / 60, inputs);
       expect(state.players[0].carriedItem?.ingredient).toBe("rice");
       expect(state.riceCooker.portions).toBe(initialPortions - 1);
+    });
+
+    it("does not return carried rice into rice cooker on action1", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+        riceCooker: createInitialRiceCookerState(3),
+      };
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-rice",
+        carriedItem: createIngredientItem("rice"),
+      };
+
+      const inputs = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, inputs);
+      // Player continues carrying rice, portions unchanged
+      expect(state.players[0].carriedItem?.ingredient).toBe("rice");
+      expect(state.riceCooker.portions).toBe(3);
     });
 
     it("transitions to empty when last portion is taken, then cooking can be started", () => {
@@ -442,6 +504,103 @@ describe("InteractionRules", () => {
       expect(state.players[1].carriedItem).toBeNull();
       // Rice cooker is now empty (or started cooking if P1 triggered empty cooker)
       expect(state.riceCooker.portions).toBe(0);
+    });
+  });
+
+  describe("Order Station Interactions & Timers", () => {
+    it("accepts a pending order at station-order with action1", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      expect(state.orderStation.pendingOrder).not.toBeNull();
+      expect(state.activeOrders).toHaveLength(0);
+
+      // Position P0 at station-order (160, 440)
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 160, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-order",
+        carriedItem: null,
+      };
+
+      const inputs = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, inputs);
+
+      expect(state.orderStation.pendingOrder).toBeNull();
+      expect(state.activeOrders).toHaveLength(1);
+      expect(state.activeOrders[0].recipeId).toBe("cucumber-maki");
+      expect(state.activeOrders[0].status).toBe("active");
+      expect(state.activeOrders[0].timeRemaining).toBeCloseTo(45);
+    });
+
+    it("allows accepting an order while carrying an item", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 160, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-order",
+        carriedItem: createIngredientItem("nori"),
+      };
+
+      const inputs = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, inputs);
+
+      expect(state.activeOrders).toHaveLength(1);
+      // Carried item remains in player's hand
+      expect(state.players[0].carriedItem?.ingredient).toBe("nori");
+    });
+
+    it("counts down active order timer during updateWorldState simulation", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      // Accept order first
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 160, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-order",
+      };
+
+      const acceptInput = [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ] as const;
+
+      state = updateWorldState(state, 1 / 60, acceptInput);
+      expect(state.activeOrders[0].timeRemaining).toBeCloseTo(45);
+
+      // Advance by 10 seconds (600 ticks of 1/60s)
+      for (let i = 0; i < 600; i++) {
+        state = updateWorldState(state, 1 / 60);
+      }
+
+      expect(state.activeOrders[0].timeRemaining).toBeCloseTo(35, 0.1);
+      expect(state.activeOrders[0].status).toBe("active");
     });
   });
 });

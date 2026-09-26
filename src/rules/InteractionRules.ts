@@ -8,6 +8,11 @@ import {
 } from "../state/ItemState";
 import type { WorldState } from "../state/WorldState";
 import type { StationDefinition } from "./StationConfig";
+import {
+  acceptOrderAtCounter,
+  advanceActiveOrders,
+  advanceOrderStationState,
+} from "./OrderRules";
 
 export const DEFAULT_ITEM_PICKUP_RADIUS = 48; // World pixels
 
@@ -45,35 +50,47 @@ export function advanceStationTimers(
   state: WorldState,
   dt: number,
 ): WorldState {
-  if (state.riceCooker.state !== "cooking") {
-    return state;
-  }
+  // 1. Advance rice cooker
+  let riceCooker = state.riceCooker;
+  if (riceCooker.state === "cooking") {
+    const newCookTime = Math.max(0, riceCooker.cookTimeRemaining - dt);
+    const total = riceCooker.totalCookTime;
+    const progress =
+      total > 0 ? Math.min(1, Math.max(0, 1 - newCookTime / total)) : 1;
 
-  const newCookTime = Math.max(0, state.riceCooker.cookTimeRemaining - dt);
-  const total = state.riceCooker.totalCookTime;
-  const progress =
-    total > 0 ? Math.min(1, Math.max(0, 1 - newCookTime / total)) : 1;
-
-  if (newCookTime <= 0) {
-    return {
-      ...state,
-      riceCooker: {
-        ...state.riceCooker,
+    if (newCookTime <= 0) {
+      riceCooker = {
+        ...riceCooker,
         state: "ready",
-        portions: state.riceCooker.maxPortions,
+        portions: riceCooker.maxPortions,
         cookTimeRemaining: 0,
         cookingProgress: 1,
-      },
-    };
+      };
+    } else {
+      riceCooker = {
+        ...riceCooker,
+        cookTimeRemaining: newCookTime,
+        cookingProgress: progress,
+      };
+    }
   }
+
+  // 2. Advance active orders countdown
+  const activeOrders = state.activeOrders
+    ? advanceActiveOrders(state.activeOrders, dt)
+    : [];
+
+  // 3. Advance order station state (spawning new orders if needed)
+  const activeCount = activeOrders.filter((o) => o.status === "active").length;
+  const orderStation = state.orderStation
+    ? advanceOrderStationState(state.orderStation, activeCount, dt)
+    : state.orderStation;
 
   return {
     ...state,
-    riceCooker: {
-      ...state.riceCooker,
-      cookTimeRemaining: newCookTime,
-      cookingProgress: progress,
-    },
+    riceCooker,
+    activeOrders,
+    orderStation,
   };
 }
 
@@ -112,6 +129,18 @@ function handleAction1(
 ): WorldState {
   const player = state.players[slot];
   const carried = player.carriedItem;
+
+  // --- Order Station interaction (accept pending order) ---
+  if (targetStation?.type === "order" && state.orderStation) {
+    const result = acceptOrderAtCounter(state.orderStation, state.activeOrders);
+    if (result.accepted) {
+      return {
+        ...state,
+        orderStation: result.orderStation,
+        activeOrders: result.activeOrders,
+      };
+    }
+  }
 
   if (carried) {
     // --- Player is carrying an item ---
@@ -165,23 +194,8 @@ function handleAction1(
     }
 
     if (targetStation?.type === "rice") {
-      // If carrying rice and rice cooker is ready with space, return rice
-      if (
-        carried.ingredient === "rice" &&
-        state.riceCooker.state === "ready" &&
-        state.riceCooker.portions < state.riceCooker.maxPortions
-      ) {
-        const updatedPlayers = [...state.players] as typeof state.players;
-        updatedPlayers[slot] = { ...player, carriedItem: null };
-        return {
-          ...state,
-          players: updatedPlayers,
-          riceCooker: {
-            ...state.riceCooker,
-            portions: state.riceCooker.portions + 1,
-          },
-        };
-      }
+      // Carrying an item at rice cooker does not return it (prevents accidental take/return cycle)
+      return state;
     }
 
     // No valid station interaction with carried item
