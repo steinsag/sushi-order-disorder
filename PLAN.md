@@ -14,7 +14,7 @@ Das MVP ist ein lokales Koop-Spiel für **2–4 Spieler auf einem gemeinsamen Bi
 2. Erst ein von außen beobachtbares Ergebnis definieren, dann die kleinste nötige Implementierung bauen. Jeder Slice lässt das Spiel startbar; keine großen, unintegrierten Modulstapel.
 3. Geschäftslogik mit Vitest gegen Zustandsübergänge prüfen. Browser- und Gamepad-Verhalten dort prüfen, wo ein Unit-Test die reale Integration nicht abbildet. Keine Tests schreiben, die nur den eigenen Code Zeile für Zeile spiegeln.
 4. Mechanische Formatierung und Autofixes durch lokale Tools ausführen: `npm run format`, bei Bedarf `npm run lint:fix`. Agents sollen Quelltext nicht manuell für Stiländerungen umschreiben oder dafür Kontext verbrauchen.
-5. Vor Abschluss `npm run check` ausführen. Bei verhaltensrelevanten Änderungen zusätzlich den passenden manuellen oder automatisierten Spielpfad prüfen. Ergebnis, ausgeführte Befehle und verbleibende Einschränkungen übergeben. Ein Slice wird erst nach Abnahme im Plan als erledigt markiert; bei parallelen Agents übernimmt das der koordinierende Agent.
+5. Vor Abschluss `npm run check` ausführen. Bei verhaltensrelevanten Änderungen zusätzlich den passenden manuellen oder automatisierten Spielpfad prüfen. Am Ende eines Slice nicht nur die Änderungen, das Ergebnis, die ausgeführten Befehle und verbleibende Einschränkungen in einer zusammenfassenden Meldung übergeben, sondern auch einen kurzen Testplan für einen menschlichen Tester bereitstellen. Ein Slice wird erst nach Abnahme im Plan als erledigt markiert; bei parallelen Agents übernimmt das der koordinierende Agent.
 
 ### Verbindliche Coding Guidelines ab H0
 
