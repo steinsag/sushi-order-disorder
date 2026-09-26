@@ -30,7 +30,7 @@ export class Overlay {
       case "loading":
         html = `
           <div class="overlay-card loading-card">
-            <h2>Lade Sushi Rush...</h2>
+            <h2>Lade Sushi Order Disorder...</h2>
             <div class="spinner"></div>
           </div>
         `;
@@ -54,7 +54,7 @@ export class Overlay {
 
         html = `
           <div class="overlay-card title-card">
-            <h1 class="game-title">🍣 Sushi Rush</h1>
+            <h1 class="game-title">🍣 Sushi Order Disorder</h1>
             <p class="tagline">Lokales Koop-Küchen-Chaos (2–4 Spieler)</p>
 
             <div class="players-setup">

@@ -1,4 +1,4 @@
-# Implementierungsplan: Sushi Rush
+# Implementierungsplan: Sushi Order Disorder
 
 Dieser Plan richtet sich an Agents, die das Spiel in kleinen, überprüfbaren Schritten umsetzen. **Erste Aufgabe ist H0 (Harness).** Danach wird jeweils genau ein Slice mit seinen Voraussetzungen, Tests und Abnahmekriterien abgeschlossen. Der Plan beschreibt die Umsetzung; Spielregeln und Inhalte werden aus [`README.md`](README.md), technische Vorgaben aus [`AGENTS.md`](AGENTS.md) übernommen. Bei Widersprüchen zu Spielinhalten gilt `README.md`, bei technischen Vorgaben `AGENTS.md`.
 
@@ -144,4 +144,4 @@ src/
 
 ## Projektlokaler Agent-Skill
 
-Ein erster Skill liegt unter [`.agents/skills/sushi-rush-implementation/SKILL.md`](.agents/skills/sushi-rush-implementation/SKILL.md). Codex lädt projektlokale Skills aus `.agents/skills`; automatische Auswahl erfolgt anhand der Beschreibung, explizite Auswahl ist ebenfalls möglich ([Codex-Dokumentation](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills)). Der Skill verweist auf diesen Plan und fordert ab H0 nur noch die lokalen Skripte für Formatierung und Qualitätssicherung an. Er enthält bewusst keinen eigenen Formatierungsalgorithmus. Nach Q1 kann bei wiederkehrendem Bedarf ein separater Skill für Geräte- und Browserabnahme ergänzt werden; vorher wären seine Schritte noch spekulativ.
+Ein erster Skill liegt unter [`.agents/skills/sushi-order-disorder-implementation`](.agents/skills/sushi-order-disorder-implementation/SKILL.md). Codex lädt projektlokale Skills aus `.agents/skills`; automatische Auswahl erfolgt anhand der Beschreibung, explizite Auswahl ist ebenfalls möglich ([Codex-Dokumentation](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills)). Der Skill verweist auf diesen Plan und fordert ab H0 nur noch die lokalen Skripte für Formatierung und Qualitätssicherung an. Er enthält bewusst keinen eigenen Formatierungsalgorithmus. Nach Q1 kann bei wiederkehrendem Bedarf ein separater Skill für Geräte- und Browserabnahme ergänzt werden; vorher wären seine Schritte noch spekulativ.

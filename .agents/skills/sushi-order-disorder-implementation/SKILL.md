@@ -1,9 +1,9 @@
 ---
-name: sushi-rush-implementation
-description: Implementiere einen Slice des Sushi-Rush-Plans im Repository und prüfe Änderungen mit dem lokalen Harness. Für Spielcode, Tests und Projekt-Harness; nicht für reine Spielideen.
+name: sushi-order-disorder-implementation
+description: Implementiere einen Slice des Sushi Order Disorder-Plans im Repository und prüfe Änderungen mit dem lokalen Harness. Für Spielcode, Tests und Projekt-Harness; nicht für reine Spielideen.
 ---
 
-# Sushi Rush: Slice umsetzen
+# Sushi Order Disorder: Slice umsetzen
 
 1. Lies `PLAN.md` für den zugewiesenen Slice, `README.md` für Spielregeln und `AGENTS.md` für technische Grenzen. Prüfe `git status` und erhalte fremde Änderungen. Falls kein Slice genannt ist, beginne mit dem ersten offenen Slice samt Voraussetzungen.
 2. Wenn die Harness-Skripte noch fehlen, implementiere zuerst H0 aus `PLAN.md`. Behaupte keine bestandene Prüfung für nicht vorhandene Skripte.

@@ -447,7 +447,7 @@ export class Renderer {
       ctx.fillStyle = "#f3f4f6";
       ctx.font = "600 24px system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("Lade Sushi Rush...", w / 2, h / 2);
+      ctx.fillText("Lade Sushi Order Disorder...", w / 2, h / 2);
     } else if (state.phase === "error") {
       ctx.fillStyle = "rgba(180, 20, 20, 0.3)";
       ctx.fillRect(0, 0, w, h);
@@ -468,7 +468,7 @@ export class Renderer {
       ctx.fillStyle = "#f3f4f6";
       ctx.font = "bold 36px system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("SUSHI RUSH", w / 2, h / 2 - 40);
+      ctx.fillText("SUSHI ORDER DISORDER", w / 2, h / 2 - 40);
 
       ctx.fillStyle = "#9ca3af";
       ctx.font = "16px system-ui, sans-serif";

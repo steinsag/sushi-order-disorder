@@ -1,6 +1,6 @@
-# Sushi Rush 🍣
+# Sushi Order Disorder 🍣
 
-**Sushi Rush** ist ein kooperatives Casual-Game für **2–4 Spieler an einem gemeinsamen Bildschirm**. Das Team betreibt gemeinsam ein kleines Sushi-Restaurant und versucht, eingehende Bestellungen möglichst schnell und korrekt zuzubereiten.
+**Sushi Order Disorder** ist ein kooperatives Casual-Game für **2–4 Spieler an einem gemeinsamen Bildschirm**. Das Team betreibt gemeinsam ein kleines Sushi-Restaurant und versucht, eingehende Bestellungen möglichst schnell und korrekt zuzubereiten.
 
 Alle Spieler steuern ihre Figuren gleichzeitig in einer gemeinsamen **Top-down-2D-Küche**. Es gibt keinen Splitscreen: Kommunikation, Arbeitsteilung und spontanes Reagieren stehen im Mittelpunkt.
 
@@ -106,7 +106,7 @@ Die Ausgabe sollte räumlich nicht direkt neben der Rollstation liegen, damit Sp
 
 ## Koop-Gameplay
 
-Sushi Rush hat keine festgelegten Rollen. Die Spieler entscheiden selbst, wer gerade welche Aufgabe übernimmt.
+Sushi Order Disorder hat keine festgelegten Rollen. Die Spieler entscheiden selbst, wer gerade welche Aufgabe übernimmt.
 
 Typische Situationen:
 
@@ -188,7 +188,7 @@ Die erste spielbare Version sollte bewusst klein bleiben:
 
 Das Spiel soll in wenigen Sekunden verständlich sein, aber durch gemeinsames Planen und hektische Situationen dauerhaft Spaß machen.
 
-**Sushi Rush** ist kein realistischer Restaurant-Simulator, sondern ein zugängliches, humorvolles Koop-Spiel: schnell, übersichtlich und ideal für eine kurze Runde mit Freunden an einem Bildschirm.
+**Sushi Order Disorder** ist kein realistischer Restaurant-Simulator, sondern ein zugängliches, humorvolles Koop-Spiel: schnell, übersichtlich und ideal für eine kurze Runde mit Freunden an einem Bildschirm.
 
 ---
 
