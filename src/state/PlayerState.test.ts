@@ -116,4 +116,22 @@ describe("PlayerState and Movement", () => {
     expect(player.pos.y).toBe(200);
     expect(player.vel).toEqual({ x: 0, y: 0 });
   });
+
+  it("slides along obstacle colliders during player update", () => {
+    const obstacle = { minX: 300, maxX: 400, minY: 200, maxY: 300 };
+    let player = createPlayerState(0, true, { x: 280, y: 250 });
+    const moveDiagonal = {
+      ...createNeutralPlayerInput(),
+      move: { x: 1, y: 1 },
+    };
+
+    // Moving right-down at 240px/s for 0.1s => dx = 24, dy = 24
+    // X will be stopped by obstacle (300 - 16 = 284), Y slides down (250 + 24 = 274)
+    player = updatePlayer(player, moveDiagonal, 0.1, DEFAULT_KITCHEN_BOUNDS, [
+      obstacle,
+    ]);
+
+    expect(player.pos.x).toBe(284);
+    expect(player.pos.y).toBeCloseTo(274, 1);
+  });
 });

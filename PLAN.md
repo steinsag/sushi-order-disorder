@@ -54,7 +54,7 @@ src/
 | T1 | Spiel-Bootstrap und deterministischer Loop | H0 | erledigt |
 | T2 | 2–4 lokale Eingaben, Join/Disconnect und freie Bewegung | T1 | erledigt |
 | T3 | Sprite-Szene, zentrale Assets und gemeinsame Kamera | T2 | erledigt |
-| T4 | Küchenlayout, Hindernisse und eindeutige Interaktionsziele | T2, T3 | offen |
+| T4 | Küchenlayout, Hindernisse und eindeutige Interaktionsziele | T2, T3 | erledigt |
 | G1 | Tragbare Zutaten, Kühlschrank und Reiskocher | T4 | offen |
 | G2 | Bestellannahme und gemeinsame Rezeptkarten | G1 | offen |
 | G3 | Rollstation und ein vollständiges Rezept | G2 | offen |

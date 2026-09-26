@@ -4,6 +4,7 @@ import { AssetLoader } from "./AssetLoader";
 import { type SpriteRenderCommand, renderSpriteScene } from "./SpriteRenderer";
 import { SPRITE_METADATA, SPRITE_URLS, type SpriteId } from "./SpriteAssets";
 import type { Vec2 } from "../math/vec2";
+import { DEFAULT_STATIONS } from "../world/KitchenLayout";
 
 export interface RendererOptions {
   width?: number;
@@ -18,18 +19,12 @@ export interface KitchenObject {
   pos: Vec2; // Ground/foot anchor in world coords
 }
 
-export const DEFAULT_KITCHEN_OBJECTS: readonly KitchenObject[] = [
-  { id: "station-order", spriteId: "station_order", pos: { x: 160, y: 110 } },
-  { id: "station-rice", spriteId: "station_rice", pos: { x: 380, y: 110 } },
-  { id: "station-fridge", spriteId: "station_fridge", pos: { x: 600, y: 110 } },
-  { id: "counter-island", spriteId: "counter", pos: { x: 480, y: 280 } },
-  { id: "station-roll", spriteId: "station_roll", pos: { x: 380, y: 440 } },
-  {
-    id: "station-delivery",
-    spriteId: "station_delivery",
-    pos: { x: 760, y: 440 },
-  },
-];
+export const DEFAULT_KITCHEN_OBJECTS: readonly KitchenObject[] =
+  DEFAULT_STATIONS.map((s) => ({
+    id: s.id,
+    spriteId: s.spriteId,
+    pos: s.pos,
+  }));
 
 export class Renderer {
   private readonly canvas: HTMLCanvasElement;
@@ -123,10 +118,28 @@ export class Renderer {
     const commands: SpriteRenderCommand[] = [];
 
     // 1. Kitchen Stations & Scenery
-    for (let i = 0; i < this.kitchenObjects.length; i++) {
-      const obj = this.kitchenObjects[i];
+    const stationsToRender: readonly {
+      id: string;
+      spriteId: SpriteId;
+      pos: Vec2;
+    }[] =
+      state.stations && state.stations.length > 0
+        ? state.stations
+        : this.kitchenObjects;
+
+    for (let i = 0; i < stationsToRender.length; i++) {
+      const obj = stationsToRender[i];
       const meta = SPRITE_METADATA[obj.spriteId];
       const image = this.assetLoader.getImage(obj.spriteId);
+
+      const targetingPlayers = joinedPlayers.filter(
+        (p) => p.targetStationId === obj.id,
+      );
+      const isTargeted = targetingPlayers.length > 0;
+      const highlightColor = isTargeted ? targetingPlayers[0].color : undefined;
+      const targetLabel = isTargeted
+        ? targetingPlayers.map((p) => `P${p.id + 1}`).join(" ")
+        : undefined;
 
       commands.push({
         id: obj.id,
@@ -139,6 +152,14 @@ export class Renderer {
         anchorY: meta.anchorY,
         depth: obj.pos.y + (meta.defaultDepthOffset ?? 0),
         sortOrder: 10 + i,
+        highlightColor,
+        badge: targetLabel
+          ? {
+              text: targetLabel,
+              color: highlightColor,
+              offsetY: -54,
+            }
+          : undefined,
       });
     }
 

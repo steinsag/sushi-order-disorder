@@ -61,6 +61,7 @@ describe("Renderer integration", () => {
     const renderer = new Renderer(canvas);
     const state = createInitialWorldState();
     state.phase = "running";
+    state.players[0].targetStationId = "station-order";
 
     expect(() => renderer.render(state, 0.016)).not.toThrow();
   });

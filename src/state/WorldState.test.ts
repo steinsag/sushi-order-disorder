@@ -53,4 +53,56 @@ describe("WorldState", () => {
     state = setPlayerJoined(state, 2, false);
     expect(state.players[2].joined).toBe(false);
   });
+
+  it("updates interaction targets and respects obstacles during world update", () => {
+    const state = {
+      ...createInitialWorldState(),
+      phase: "running" as const,
+    };
+
+    // Position P1 just below station-order (160, 110)
+    state.players[0] = {
+      ...state.players[0],
+      pos: { x: 160, y: 160 },
+      facing: { x: 0, y: -1 },
+    };
+
+    const updated = updateWorldState(state, 0.016);
+    expect(updated.players[0].targetStationId).toBe("station-order");
+
+    // Attempt to run straight up into the station obstacle
+    const moveUp = [
+      { ...createNeutralPlayerInput(), move: { x: 0, y: -1 } },
+      createNeutralPlayerInput(),
+      createNeutralPlayerInput(),
+      createNeutralPlayerInput(),
+    ] as const;
+
+    const blocked = updateWorldState(updated, 1.0, moveUp);
+    // station-order collider maxY is 116. Player with radius 16 should be blocked at 116 + 16 = 132
+    expect(blocked.players[0].pos.y).toBeGreaterThanOrEqual(132);
+  });
+
+  it("processes multiple player updates in deterministic slot order", () => {
+    const state = {
+      ...createInitialWorldState(),
+      phase: "running" as const,
+    };
+
+    // P1 at order, P2 at rice
+    state.players[0] = {
+      ...state.players[0],
+      pos: { x: 160, y: 160 },
+      facing: { x: 0, y: -1 },
+    };
+    state.players[1] = {
+      ...state.players[1],
+      pos: { x: 380, y: 160 },
+      facing: { x: 0, y: -1 },
+    };
+
+    const updated = updateWorldState(state, 0.016);
+    expect(updated.players[0].targetStationId).toBe("station-order");
+    expect(updated.players[1].targetStationId).toBe("station-rice");
+  });
 });

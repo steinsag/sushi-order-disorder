@@ -6,6 +6,9 @@ import {
   type PlayerState,
   updatePlayer,
 } from "./PlayerState";
+import type { ColliderAABB, StationDefinition } from "../rules/StationConfig";
+import { DEFAULT_STATIONS, getStationColliders } from "../world/KitchenLayout";
+import { findInteractionTarget } from "../world/Interaction";
 
 export type GamePhase = "loading" | "title" | "running" | "paused" | "error";
 
@@ -15,6 +18,8 @@ export interface WorldState {
   tickCount: number;
   players: [PlayerState, PlayerState, PlayerState, PlayerState];
   bounds: KitchenBounds;
+  stations: readonly StationDefinition[];
+  obstacles: readonly ColliderAABB[];
   errorMessage?: string;
 }
 
@@ -30,6 +35,8 @@ export function createInitialWorldState(): WorldState {
       createPlayerState(3, false), // P4 available to join
     ],
     bounds: DEFAULT_KITCHEN_BOUNDS,
+    stations: DEFAULT_STATIONS,
+    obstacles: getStationColliders(DEFAULT_STATIONS),
   };
 }
 
@@ -56,6 +63,7 @@ export function setPlayerJoined(
 
 /**
  * Pure simulation update function, independent of DOM or wall clock.
+ * Simultaneous actions and target calculations are processed deterministically in player slot order (0 -> 1 -> 2 -> 3).
  */
 export function updateWorldState(
   state: WorldState,
@@ -66,9 +74,17 @@ export function updateWorldState(
     return state;
   }
 
+  // 1. Update player positions, velocities, and facing directions with obstacles & boundaries
   const updatedPlayers = state.players.map((p, i) => {
     const input = inputs ? inputs[i] : p.input;
-    return updatePlayer(p, input, dt, state.bounds);
+    const moved = updatePlayer(p, input, dt, state.bounds, state.obstacles);
+
+    // 2. Determine unambiguous interaction target for active players
+    const target = findInteractionTarget(moved, state.stations);
+    return {
+      ...moved,
+      targetStationId: target ? target.id : null,
+    };
   }) as [PlayerState, PlayerState, PlayerState, PlayerState];
 
   return {
