@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { ALL_RECIPE_IDS, getRecipeDefinition, RECIPES } from "./RecipeConfig";
+import {
+  ALL_RECIPE_IDS,
+  findMatchingRecipe,
+  getRecipeDefinition,
+  matchIngredientsToRecipe,
+  RECIPES,
+} from "./RecipeConfig";
+import { createIngredientItem, createPlateItem } from "../state/ItemState";
 
 describe("RecipeConfig", () => {
   it("defines valid configurations for all four MVP recipes", () => {
@@ -38,5 +45,50 @@ describe("RecipeConfig", () => {
     expect(() => getRecipeDefinition("unknown-sushi")).toThrow(
       'Unknown recipe ID: "unknown-sushi"',
     );
+  });
+
+  describe("matchIngredientsToRecipe", () => {
+    it("matches cucumber-maki regardless of ingredient order", () => {
+      expect(matchIngredientsToRecipe(["nori", "rice", "cucumber"])?.id).toBe(
+        "cucumber-maki",
+      );
+      expect(matchIngredientsToRecipe(["cucumber", "nori", "rice"])?.id).toBe(
+        "cucumber-maki",
+      );
+      expect(matchIngredientsToRecipe(["rice", "cucumber", "nori"])?.id).toBe(
+        "cucumber-maki",
+      );
+    });
+
+    it("returns null for incomplete ingredients", () => {
+      expect(matchIngredientsToRecipe([])).toBeNull();
+      expect(matchIngredientsToRecipe(["nori", "rice"])).toBeNull();
+      expect(matchIngredientsToRecipe(["cucumber"])).toBeNull();
+    });
+
+    it("returns null for extra or conflicting ingredients", () => {
+      expect(
+        matchIngredientsToRecipe(["nori", "rice", "cucumber", "salmon"]),
+      ).toBeNull();
+      expect(
+        matchIngredientsToRecipe(["nori", "cucumber", "avocado"]),
+      ).toBeNull();
+    });
+  });
+
+  describe("findMatchingRecipe", () => {
+    it("matches recipe from list of IngredientItems", () => {
+      const items = [
+        createIngredientItem("nori"),
+        createIngredientItem("rice"),
+        createIngredientItem("cucumber"),
+      ];
+      expect(findMatchingRecipe(items)?.id).toBe("cucumber-maki");
+    });
+
+    it("returns null when plate items are in the list", () => {
+      const items = [createPlateItem("cucumber-maki")];
+      expect(findMatchingRecipe(items)).toBeNull();
+    });
   });
 });

@@ -4,6 +4,7 @@ import {
   DEFAULT_RICE_MAX_PORTIONS,
   FRIDGE_INGREDIENTS,
 } from "../rules/IngredientConfig";
+import type { RecipeId } from "../rules/RecipeConfig";
 import type { Item } from "./ItemState";
 
 export type RiceCookerState = "empty" | "cooking" | "ready";
@@ -42,13 +43,28 @@ export function createInitialFridgeState(): FridgeStationState {
   };
 }
 
+export type RollStationStateMode = "idle" | "rolling";
+export const DEFAULT_ROLL_TIME = 2.0; // Seconds
+
 export interface RollStationState {
+  state: RollStationStateMode;
   items: Item[];
+  rollingTimeRemaining: number;
+  totalRollingTime: number;
+  rollingProgress: number; // 0 to 1
+  rollingRecipeId: RecipeId | null;
 }
 
-export function createInitialRollStationState(): RollStationState {
+export function createInitialRollStationState(
+  rollTime = DEFAULT_ROLL_TIME,
+): RollStationState {
   return {
+    state: "idle",
     items: [],
+    rollingTimeRemaining: 0,
+    totalRollingTime: rollTime,
+    rollingProgress: 0,
+    rollingRecipeId: null,
   };
 }
 

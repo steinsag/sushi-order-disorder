@@ -186,9 +186,16 @@ export class Overlay {
         const joinedPlayersHtml = state.players
           .map((p) => {
             if (!p.joined) return "";
-            const itemText = p.carriedItem
-              ? `${INGREDIENT_METADATA[p.carriedItem.ingredient].emoji} ${INGREDIENT_METADATA[p.carriedItem.ingredient].label}`
-              : "leer";
+            let itemText = "leer";
+            if (p.carriedItem) {
+              if (p.carriedItem.type === "plate") {
+                const r = getRecipeDefinition(p.carriedItem.recipeId);
+                itemText = `${r.emoji} ${r.name}`;
+              } else {
+                const ing = INGREDIENT_METADATA[p.carriedItem.ingredient];
+                itemText = `${ing.emoji} ${ing.label}`;
+              }
+            }
             return `
               <div class="hud-player-badge" style="border-left: 3px solid ${p.color};">
                 <span class="hud-player-name" style="color: ${p.color};">P${p.id + 1}:</span>

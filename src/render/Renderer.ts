@@ -10,7 +10,18 @@ import { SPRITE_METADATA, SPRITE_URLS, type SpriteId } from "./SpriteAssets";
 import type { Vec2 } from "../math/vec2";
 import { DEFAULT_STATIONS } from "../world/KitchenLayout";
 import { INGREDIENT_METADATA } from "../rules/IngredientConfig";
+import { findMatchingRecipe, getRecipeDefinition } from "../rules/RecipeConfig";
 import { getFridgeIngredientForPlayerPos } from "../rules/InteractionRules";
+import type { Item } from "../state/ItemState";
+
+function getItemDisplay(item: Item): { emoji: string; label: string } {
+  if (item.type === "plate") {
+    const recipe = getRecipeDefinition(item.recipeId);
+    return { emoji: recipe.emoji, label: recipe.name };
+  }
+  const ingMeta = INGREDIENT_METADATA[item.ingredient];
+  return { emoji: ingMeta.emoji, label: ingMeta.label };
+}
 
 export interface RendererOptions {
   width?: number;
@@ -184,11 +195,40 @@ export class Renderer {
             : "🍚 Reiskocher leer (Akt1)";
         }
       } else if (obj.id === "station-roll" && state.rollStation) {
-        if (state.rollStation.items.length > 0) {
-          const itemIcons = state.rollStation.items
-            .map((item) => INGREDIENT_METADATA[item.ingredient].emoji)
-            .join(" ");
-          stationText = `[ ${itemIcons} ]`;
+        const rs = state.rollStation;
+        if (rs.state === "rolling" && rs.rollingRecipeId) {
+          const recipe = getRecipeDefinition(rs.rollingRecipeId);
+          stationText = `🔄 Rollt ${recipe.name}... (${rs.rollingTimeRemaining.toFixed(1)}s)`;
+          stationProgressBar = {
+            progress: rs.rollingProgress,
+            label: `🔄 ${rs.rollingTimeRemaining.toFixed(1)}s`,
+            fillColor: "#38bdf8",
+            bgColor: "#27272a",
+            borderColor: "rgba(255, 255, 255, 0.4)",
+            offsetY: -56,
+            width: 72,
+            height: 12,
+          };
+        } else if (rs.items.length > 0) {
+          const matchingRecipe = findMatchingRecipe(rs.items);
+          if (matchingRecipe) {
+            const itemIcons = rs.items
+              .map((item) => getItemDisplay(item).emoji)
+              .join(" ");
+            stationText = isTargeted
+              ? `🍱 ${matchingRecipe.name} rollen (Akt1)`
+              : `[ ${itemIcons} ] ✨ Bereit zum Rollen`;
+          } else {
+            const hasPlate = rs.items.some((i) => i.type === "plate");
+            const itemIcons = rs.items
+              .map((item) => getItemDisplay(item).emoji)
+              .join(" ");
+            stationText = isTargeted
+              ? hasPlate
+                ? `🍽️ Teller nehmen (Akt1)`
+                : `[ ${itemIcons} ] Nehmen (Akt1)`
+              : `[ ${itemIcons} ]`;
+          }
         }
       } else if (
         obj.id === "counter-island" &&
@@ -197,7 +237,7 @@ export class Renderer {
         const counterItems = state.counters["counter-island"].items;
         if (counterItems.length > 0) {
           const itemIcons = counterItems
-            .map((item) => INGREDIENT_METADATA[item.ingredient].emoji)
+            .map((item) => getItemDisplay(item).emoji)
             .join(" ");
           stationText = `[ ${itemIcons} ]`;
         }
@@ -243,7 +283,7 @@ export class Renderer {
     if (state.droppedItems) {
       for (let j = 0; j < state.droppedItems.length; j++) {
         const dropped = state.droppedItems[j];
-        const ingMeta = INGREDIENT_METADATA[dropped.item.ingredient];
+        const display = getItemDisplay(dropped.item);
         commands.push({
           id: dropped.id,
           worldX: dropped.pos.x,
@@ -261,7 +301,7 @@ export class Renderer {
             opacity: 0.3,
           },
           badge: {
-            text: `${ingMeta.emoji} ${ingMeta.label}`,
+            text: `${display.emoji} ${display.label}`,
             color: "#ffffff",
             offsetY: -16,
           },
@@ -290,7 +330,7 @@ export class Renderer {
         : undefined;
 
       const playerBadge = player.carriedItem
-        ? `P${player.id + 1}: ${INGREDIENT_METADATA[player.carriedItem.ingredient].emoji} ${INGREDIENT_METADATA[player.carriedItem.ingredient].label}`
+        ? `P${player.id + 1}: ${getItemDisplay(player.carriedItem).emoji} ${getItemDisplay(player.carriedItem).label}`
         : `P${player.id + 1}`;
 
       commands.push({
@@ -460,7 +500,7 @@ export class Renderer {
       for (let i = 0; i < joined.length; i++) {
         const p = joined[i];
         const itemText = p.carriedItem
-          ? `${INGREDIENT_METADATA[p.carriedItem.ingredient].emoji} ${INGREDIENT_METADATA[p.carriedItem.ingredient].label}`
+          ? `${getItemDisplay(p.carriedItem).emoji} ${getItemDisplay(p.carriedItem).label}`
           : "leer";
         ctx.fillStyle = p.color;
         ctx.fillText(`P${p.id + 1}: ${itemText}`, 28, 70 + i * 18);

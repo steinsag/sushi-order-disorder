@@ -4,10 +4,16 @@ import type { IngredientType } from "./IngredientConfig";
 import {
   createDroppedItem,
   createIngredientItem,
+  createPlateItem,
   type DroppedItem,
 } from "../state/ItemState";
 import type { WorldState } from "../state/WorldState";
 import type { StationDefinition } from "./StationConfig";
+import {
+  DEFAULT_RECIPE_ID,
+  findMatchingRecipe,
+  getRecipeDefinition,
+} from "./RecipeConfig";
 import {
   acceptOrderAtCounter,
   advanceActiveOrders,
@@ -75,12 +81,40 @@ export function advanceStationTimers(
     }
   }
 
-  // 2. Advance active orders countdown
+  // 2. Advance roll station
+  let rollStation = state.rollStation;
+  if (rollStation.state === "rolling") {
+    const newRollTime = Math.max(0, rollStation.rollingTimeRemaining - dt);
+    const total = rollStation.totalRollingTime;
+    const progress =
+      total > 0 ? Math.min(1, Math.max(0, 1 - newRollTime / total)) : 1;
+
+    if (newRollTime <= 0) {
+      const recipeId = rollStation.rollingRecipeId ?? DEFAULT_RECIPE_ID;
+      const plate = createPlateItem(recipeId);
+      rollStation = {
+        ...rollStation,
+        state: "idle",
+        items: [plate],
+        rollingTimeRemaining: 0,
+        rollingProgress: 0,
+        rollingRecipeId: null,
+      };
+    } else {
+      rollStation = {
+        ...rollStation,
+        rollingTimeRemaining: newRollTime,
+        rollingProgress: progress,
+      };
+    }
+  }
+
+  // 3. Advance active orders countdown
   const activeOrders = state.activeOrders
     ? advanceActiveOrders(state.activeOrders, dt)
     : [];
 
-  // 3. Advance order station state (spawning new orders if needed)
+  // 4. Advance order station state (spawning new orders if needed)
   const activeCount = activeOrders.filter((o) => o.status === "active").length;
   const orderStation = state.orderStation
     ? advanceOrderStationState(state.orderStation, activeCount, dt)
@@ -89,6 +123,7 @@ export function advanceStationTimers(
   return {
     ...state,
     riceCooker,
+    rollStation,
     activeOrders,
     orderStation,
   };
@@ -145,6 +180,11 @@ function handleAction1(
   if (carried) {
     // --- Player is carrying an item ---
     if (targetStation?.type === "roll") {
+      // If roll station is actively rolling, player cannot place item onto it
+      if (state.rollStation.state === "rolling") {
+        return state;
+      }
+
       // Place item onto Roll Station
       const updatedRollItems = [...state.rollStation.items, carried];
       const updatedPlayers = [...state.players] as typeof state.players;
@@ -258,7 +298,29 @@ function handleAction1(
   }
 
   if (targetStation?.type === "roll") {
-    // Take top item from Roll Station
+    // If roll station is actively rolling, player cannot interact with it
+    if (state.rollStation.state === "rolling") {
+      return state;
+    }
+
+    // Check if current ingredients on roll station form a valid recipe
+    const matchingRecipe = findMatchingRecipe(state.rollStation.items);
+    if (matchingRecipe) {
+      // Start rolling recipe
+      return {
+        ...state,
+        rollStation: {
+          ...state.rollStation,
+          state: "rolling",
+          rollingRecipeId: matchingRecipe.id,
+          rollingTimeRemaining: state.rollStation.totalRollingTime,
+          rollingProgress: 0,
+          items: [],
+        },
+      };
+    }
+
+    // If no matching recipe (e.g. partial ingredients, invalid combination, or finished plate), pick up top item
     if (state.rollStation.items.length > 0) {
       const remainingItems = [...state.rollStation.items];
       const itemToTake = remainingItems.pop()!;
@@ -373,6 +435,27 @@ function handleAction2(
         state: "empty",
         cookTimeRemaining: 0,
         cookingProgress: 0,
+      },
+    };
+  }
+
+  // If empty-handed and targeting roll station while rolling, cancel rolling
+  if (targetStation?.type === "roll" && state.rollStation.state === "rolling") {
+    const cancelledRecipeId =
+      state.rollStation.rollingRecipeId ?? DEFAULT_RECIPE_ID;
+    const recipe = getRecipeDefinition(cancelledRecipeId);
+    const restoredItems = recipe.ingredients.map((ing) =>
+      createIngredientItem(ing),
+    );
+    return {
+      ...state,
+      rollStation: {
+        ...state.rollStation,
+        state: "idle",
+        items: restoredItems,
+        rollingRecipeId: null,
+        rollingTimeRemaining: 0,
+        rollingProgress: 0,
       },
     };
   }

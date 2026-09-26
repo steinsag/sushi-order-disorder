@@ -1,4 +1,5 @@
 import type { IngredientType } from "./IngredientConfig";
+import type { Item } from "../state/ItemState";
 
 export type RecipeId =
   "cucumber-maki" | "salmon-nigiri" | "salmon-maki" | "avocado-maki";
@@ -64,4 +65,46 @@ export function getRecipeDefinition(id: RecipeId): RecipeDefinition {
     throw new Error(`Unknown recipe ID: "${id}"`);
   }
   return recipe;
+}
+
+/**
+ * Checks if a collection of ingredient types matches any recipe definition exactly.
+ */
+export function matchIngredientsToRecipe(
+  ingredients: readonly IngredientType[],
+): RecipeDefinition | null {
+  if (ingredients.length === 0) return null;
+  const sorted = [...ingredients].sort();
+
+  for (const recipe of Object.values(RECIPES)) {
+    const sortedRecipe = [...recipe.ingredients].sort();
+    if (sorted.length !== sortedRecipe.length) {
+      continue;
+    }
+    if (sorted.every((ing, idx) => ing === sortedRecipe[idx])) {
+      return recipe;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Checks if a list of Items (e.g. from the roll station) matches any recipe definition.
+ * Returns null if any item is not an ingredient or if ingredients do not match a recipe.
+ */
+export function findMatchingRecipe(
+  items: readonly Item[],
+): RecipeDefinition | null {
+  if (items.length === 0) return null;
+  const ingredients: IngredientType[] = [];
+
+  for (const item of items) {
+    if (item.type !== "ingredient") {
+      return null;
+    }
+    ingredients.push(item.ingredient);
+  }
+
+  return matchIngredientsToRecipe(ingredients);
 }
