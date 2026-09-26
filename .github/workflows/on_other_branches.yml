@@ -1,0 +1,16 @@
+name: Test and Build
+
+on:
+  push:
+    branches:
+      - 'dependabot/**'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test-and-build:
+    uses: ./.github/workflows/reusable_test_and_build.yml
+    with:
+      upload-pages-artifact: false
