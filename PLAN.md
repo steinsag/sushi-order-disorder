@@ -50,7 +50,7 @@ src/
 
 | ID | Ergebnis | Voraussetzung | Status |
 | --- | --- | --- | --- |
-| H0 | Reproduzierbares Harness und Projektregeln | keine | offen |
+| H0 | Reproduzierbares Harness und Projektregeln | keine | erledigt |
 | T1 | Spiel-Bootstrap und deterministischer Loop | H0 | offen |
 | T2 | 2–4 lokale Eingaben, Join/Disconnect und freie Bewegung | T1 | offen |
 | T3 | Sprite-Szene, zentrale Assets und gemeinsame Kamera | T2 | offen |

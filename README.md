@@ -189,3 +189,25 @@ Die erste spielbare Version sollte bewusst klein bleiben:
 Das Spiel soll in wenigen Sekunden verständlich sein, aber durch gemeinsames Planen und hektische Situationen dauerhaft Spaß machen.
 
 **Sushi Rush** ist kein realistischer Restaurant-Simulator, sondern ein zugängliches, humorvolles Koop-Spiel: schnell, übersichtlich und ideal für eine kurze Runde mit Freunden an einem Bildschirm.
+
+---
+
+## Entwicklung
+
+### Voraussetzungen
+
+- Node.js LTS (>= 22)
+- npm
+
+### Installation & Befehle
+
+```bash
+# Abhängigkeiten reproduzierbar installieren
+npm ci
+
+# Entwicklungsserver starten
+npm run dev
+
+# Vollständige Prüfung (Formatierung, Linting, Typcheck, Tests, Build)
+npm run check
+```
