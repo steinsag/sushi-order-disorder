@@ -1,12 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { createInitialWorldState, updateWorldState } from "./WorldState";
+import {
+  createInitialWorldState,
+  setPlayerJoined,
+  updateWorldState,
+} from "./WorldState";
+import { createNeutralPlayerInput } from "../input/PlayerInput";
 
 describe("WorldState", () => {
-  it("initializes in title phase with 0 simulation time", () => {
+  it("initializes in title phase with 0 simulation time and 4 slots", () => {
     const state = createInitialWorldState();
     expect(state.phase).toBe("title");
     expect(state.simulationTime).toBe(0);
     expect(state.tickCount).toBe(0);
+    expect(state.players).toHaveLength(4);
+    expect(state.players[0].joined).toBe(true);
+    expect(state.players[1].joined).toBe(true);
+    expect(state.players[2].joined).toBe(false);
+    expect(state.players[3].joined).toBe(false);
   });
 
   it("does not increment simulation time when not running", () => {
@@ -16,14 +26,31 @@ describe("WorldState", () => {
     expect(updated.tickCount).toBe(0);
   });
 
-  it("increments simulation time and tickCount deterministically when running", () => {
+  it("increments simulation time and updates players when running", () => {
     const state = { ...createInitialWorldState(), phase: "running" as const };
-    const step1 = updateWorldState(state, 0.05);
-    expect(step1.simulationTime).toBeCloseTo(0.05, 5);
-    expect(step1.tickCount).toBe(1);
+    const p1Start = state.players[0].pos.x;
+    const inputs = [
+      { ...createNeutralPlayerInput(), move: { x: 1, y: 0 } },
+      createNeutralPlayerInput(),
+      createNeutralPlayerInput(),
+      createNeutralPlayerInput(),
+    ] as const;
 
-    const step2 = updateWorldState(step1, 0.05);
-    expect(step2.simulationTime).toBeCloseTo(0.1, 5);
-    expect(step2.tickCount).toBe(2);
+    const step1 = updateWorldState(state, 0.5, inputs);
+    expect(step1.simulationTime).toBeCloseTo(0.5, 5);
+    expect(step1.tickCount).toBe(1);
+    expect(step1.players[0].pos.x).toBe(p1Start + 240 * 0.5);
+    expect(step1.players[1].pos.x).toBe(state.players[1].pos.x);
+  });
+
+  it("handles setPlayerJoined toggle", () => {
+    let state = createInitialWorldState();
+    expect(state.players[2].joined).toBe(false);
+
+    state = setPlayerJoined(state, 2, true);
+    expect(state.players[2].joined).toBe(true);
+
+    state = setPlayerJoined(state, 2, false);
+    expect(state.players[2].joined).toBe(false);
   });
 });

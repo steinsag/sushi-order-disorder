@@ -1,14 +1,18 @@
 import {
   createInitialWorldState,
+  setPlayerJoined,
   updateWorldState,
   type WorldState,
 } from "../state/WorldState";
 import { Renderer } from "../render/Renderer";
 import { Overlay } from "../ui/Overlay";
 import { GameLoop, type GameLoopOptions } from "./GameLoop";
+import { InputSystem, type InputSystemOptions } from "../input/InputSystem";
+import type { InputDevice, PlayerIndex } from "../input/PlayerInput";
 
 export interface GameOptions {
   loopOptions?: GameLoopOptions;
+  inputOptions?: InputSystemOptions;
 }
 
 export class Game {
@@ -17,6 +21,8 @@ export class Game {
   private readonly loop: GameLoop;
   private readonly renderer: Renderer;
   private readonly overlay: Overlay;
+  private readonly inputSystem: InputSystem;
+
   private readonly onResize = (): void => {
     this.renderer.resize();
   };
@@ -33,12 +39,19 @@ export class Game {
     this.container.appendChild(canvas);
 
     this.renderer = new Renderer(canvas);
+    this.inputSystem = new InputSystem(options.inputOptions);
+
+    if (typeof window !== "undefined") {
+      this.inputSystem.attach(window);
+      window.addEventListener("resize", this.onResize);
+    }
 
     this.overlay = new Overlay(this.container, {
       onStart: () => this.startMatch(),
       onPauseToggle: () => this.togglePause(),
       onReset: () => this.resetToTitle(),
       onRetry: () => this.resetToTitle(),
+      onTogglePlayerSlot: (slot) => this.togglePlayerSlot(slot),
     });
 
     this.loop = new GameLoop(
@@ -46,10 +59,6 @@ export class Game {
       (alpha) => this.render(alpha),
       options.loopOptions,
     );
-
-    if (typeof window !== "undefined") {
-      window.addEventListener("resize", this.onResize);
-    }
 
     // Initial render
     this.render(0);
@@ -60,11 +69,52 @@ export class Game {
     return this.state;
   }
 
+  public getInputSystem(): InputSystem {
+    return this.inputSystem;
+  }
+
+  public setPlayerJoined(slot: PlayerIndex, joined: boolean): void {
+    this.state = setPlayerJoined(this.state, slot, joined);
+    this.overlay.render(this.state);
+  }
+
+  public togglePlayerSlot(slot: PlayerIndex): void {
+    const isJoined = this.state.players[slot].joined;
+    const nextJoined = !isJoined;
+    if (nextJoined && !this.inputSystem.getBinding(slot)) {
+      const defaultDevices: Record<PlayerIndex, InputDevice> = {
+        0: { kind: "keyboard", layout: "arrows" },
+        1: { kind: "keyboard", layout: "wasd" },
+        2: { kind: "gamepad", gamepadIndex: 0 },
+        3: { kind: "gamepad", gamepadIndex: 1 },
+      };
+      this.inputSystem.bindSlot(slot, defaultDevices[slot]);
+    }
+    this.setPlayerJoined(slot, nextJoined);
+  }
+
+  public bindDevice(slot: PlayerIndex, device: InputDevice): void {
+    this.inputSystem.bindSlot(slot, device);
+    this.setPlayerJoined(slot, true);
+  }
+
+  public unbindDevice(slot: PlayerIndex): void {
+    this.inputSystem.unbindSlot(slot);
+    this.setPlayerJoined(slot, false);
+  }
+
   public startMatch(): void {
+    // Ensure at least 1 player is joined before starting
+    const hasJoinedPlayer = this.state.players.some((p) => p.joined);
+    if (!hasJoinedPlayer) {
+      this.state = setPlayerJoined(this.state, 0, true);
+    }
+
     this.state = {
       ...this.state,
       phase: "running",
     };
+    this.inputSystem.reset();
     this.overlay.render(this.state);
   }
 
@@ -79,12 +129,14 @@ export class Game {
         ...this.state,
         phase: "running",
       };
+      this.inputSystem.reset();
     }
     this.overlay.render(this.state);
   }
 
   public resetToTitle(): void {
     this.state = createInitialWorldState();
+    this.inputSystem.reset();
     this.overlay.render(this.state);
   }
 
@@ -99,7 +151,14 @@ export class Game {
 
   public update(dt: number): void {
     try {
-      this.state = updateWorldState(this.state, dt);
+      const { inputs, pausePressed } = this.inputSystem.poll();
+
+      if (pausePressed) {
+        this.togglePause();
+        return;
+      }
+
+      this.state = updateWorldState(this.state, dt, inputs);
     } catch (err) {
       this.setError(err instanceof Error ? err.message : String(err));
     }
@@ -116,6 +175,7 @@ export class Game {
 
   public destroy(): void {
     this.loop.stop();
+    this.inputSystem.detach();
     if (typeof window !== "undefined") {
       window.removeEventListener("resize", this.onResize);
     }

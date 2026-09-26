@@ -1,4 +1,5 @@
 import type { WorldState } from "../state/WorldState";
+import type { PlayerState } from "../state/PlayerState";
 
 export interface RendererOptions {
   width?: number;
@@ -55,14 +56,15 @@ export class Renderer {
     ctx.fillRect(0, 0, w, h);
 
     // Floor area (Kitchen bounds)
-    const marginX = Math.max(20, w * 0.05);
-    const marginY = Math.max(20, h * 0.05);
-    const kitchenW = w - marginX * 2;
-    const kitchenH = h - marginY * 2;
+    const bounds = state.bounds;
+    const kitchenX = bounds.minX - 16;
+    const kitchenY = bounds.minY - 16;
+    const kitchenW = bounds.maxX - bounds.minX + 32;
+    const kitchenH = bounds.maxY - bounds.minY + 32;
 
     // Floor base
     ctx.fillStyle = "#2b2b36";
-    ctx.fillRect(marginX, marginY, kitchenW, kitchenH);
+    ctx.fillRect(kitchenX, kitchenY, kitchenW, kitchenH);
 
     // Grid pattern on kitchen floor
     ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
@@ -70,20 +72,29 @@ export class Renderer {
     const gridSize = 32;
 
     ctx.beginPath();
-    for (let x = marginX; x <= marginX + kitchenW; x += gridSize) {
-      ctx.moveTo(x, marginY);
-      ctx.lineTo(x, marginY + kitchenH);
+    for (let x = kitchenX; x <= kitchenX + kitchenW; x += gridSize) {
+      ctx.moveTo(x, kitchenY);
+      ctx.lineTo(x, kitchenY + kitchenH);
     }
-    for (let y = marginY; y <= marginY + kitchenH; y += gridSize) {
-      ctx.moveTo(marginX, y);
-      ctx.lineTo(marginX + kitchenW, y);
+    for (let y = kitchenY; y <= kitchenY + kitchenH; y += gridSize) {
+      ctx.moveTo(kitchenX, y);
+      ctx.lineTo(kitchenX + kitchenW, y);
     }
     ctx.stroke();
 
     // Kitchen border
     ctx.strokeStyle = "#434356";
     ctx.lineWidth = 3;
-    ctx.strokeRect(marginX, marginY, kitchenW, kitchenH);
+    ctx.strokeRect(kitchenX, kitchenY, kitchenW, kitchenH);
+
+    // Draw players (sorted by Y position for proper 2.5D visual overlap)
+    const sortedPlayers = [...state.players]
+      .filter((p) => p.joined)
+      .sort((a, b) => a.pos.y - b.pos.y);
+
+    for (const player of sortedPlayers) {
+      this.drawPlayer(ctx, player);
+    }
 
     // Phase specific graphics on canvas
     if (state.phase === "loading") {
@@ -114,29 +125,87 @@ export class Renderer {
       ctx.fillStyle = "#f3f4f6";
       ctx.font = "bold 36px system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("SUSHI RUSH", w / 2, h / 2 - 20);
+      ctx.fillText("SUSHI RUSH", w / 2, h / 2 - 40);
 
       ctx.fillStyle = "#9ca3af";
       ctx.font = "16px system-ui, sans-serif";
-      ctx.fillText("Küche bereit – Klicke auf Start", w / 2, h / 2 + 20);
+      ctx.fillText("Küche bereit – Klicke auf Start", w / 2, h / 2);
     } else if (state.phase === "running" || state.phase === "paused") {
       // HUD preview / Debug info
-      ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-      ctx.fillRect(marginX + 10, marginY + 10, 220, 50);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+      ctx.fillRect(kitchenX + 10, kitchenY + 10, 260, 60);
 
       ctx.fillStyle = "#a7f3d0";
-      ctx.font = "14px monospace";
+      ctx.font = "13px monospace";
       ctx.textAlign = "left";
       ctx.fillText(
         `Status: ${state.phase.toUpperCase()}`,
-        marginX + 20,
-        marginY + 30,
+        kitchenX + 20,
+        kitchenY + 30,
       );
       ctx.fillText(
         `Zeit: ${state.simulationTime.toFixed(1)}s | Ticks: ${state.tickCount}`,
-        marginX + 20,
-        marginY + 48,
+        kitchenX + 20,
+        kitchenY + 46,
+      );
+      const joinedCount = state.players.filter((p) => p.joined).length;
+      ctx.fillText(
+        `Aktive Köche: ${joinedCount}/4`,
+        kitchenX + 20,
+        kitchenY + 62,
       );
     }
+  }
+
+  private drawPlayer(ctx: CanvasRenderingContext2D, player: PlayerState): void {
+    const x = player.pos.x;
+    const y = player.pos.y;
+    const radius = 18;
+
+    // Shadow on floor
+    ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+    ctx.beginPath();
+    ctx.ellipse(x, y + 2, radius * 1.1, radius * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Action ring indicator if action1 or action2 held
+    if (player.input.action1 || player.input.action2) {
+      ctx.strokeStyle = player.input.action1 ? "#38bdf8" : "#f43f5e";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y - 8, radius + 6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Player body
+    ctx.fillStyle = player.color;
+    ctx.beginPath();
+    ctx.arc(x, y - 8, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Player outline
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Chef hat / top highlight
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(x, y - 18, radius * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Facing direction dot / visor
+    const faceX = x + player.facing.x * 10;
+    const faceY = y - 8 + player.facing.y * 10;
+    ctx.fillStyle = "#1e1e24";
+    ctx.beginPath();
+    ctx.arc(faceX, faceY, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Player ID badge
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 11px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(`P${player.id + 1}`, x, y + 24);
   }
 }

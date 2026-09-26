@@ -1,10 +1,12 @@
 import type { WorldState } from "../state/WorldState";
+import type { PlayerIndex } from "../input/PlayerInput";
 
 export interface OverlayCallbacks {
   onStart: () => void;
   onPauseToggle: () => void;
   onReset: () => void;
   onRetry: () => void;
+  onTogglePlayerSlot?: (slot: PlayerIndex) => void;
 }
 
 export class Overlay {
@@ -42,20 +44,61 @@ export class Overlay {
         `;
         break;
 
-      case "title":
+      case "title": {
+        const p1Joined = state.players[0].joined;
+        const p2Joined = state.players[1].joined;
+        const p3Joined = state.players[2].joined;
+        const p4Joined = state.players[3].joined;
+
         html = `
           <div class="overlay-card title-card">
             <h1 class="game-title">🍣 Sushi Rush</h1>
-            <p class="tagline">Lokales Koop-Kübchen-Chaos (2–4 Spieler)</p>
+            <p class="tagline">Lokales Koop-Küchen-Chaos (2–4 Spieler)</p>
+
+            <div class="players-setup">
+              <div class="player-slot ${p1Joined ? "active" : "inactive"}" data-slot="0">
+                <span class="badge p1-badge">P1</span>
+                <span class="slot-desc">Pfeiltasten (K: Akt1, L: Akt2)</span>
+                <button class="btn-slot-toggle ${p1Joined ? "active" : ""}" data-slot="0">
+                  ${p1Joined ? "Dabei" : "Beitreten"}
+                </button>
+              </div>
+
+              <div class="player-slot ${p2Joined ? "active" : "inactive"}" data-slot="1">
+                <span class="badge p2-badge">P2</span>
+                <span class="slot-desc">WASD (F: Akt1, G: Akt2)</span>
+                <button class="btn-slot-toggle ${p2Joined ? "active" : ""}" data-slot="1">
+                  ${p2Joined ? "Dabei" : "Beitreten"}
+                </button>
+              </div>
+
+              <div class="player-slot ${p3Joined ? "active" : "inactive"}" data-slot="2">
+                <span class="badge p3-badge">P3</span>
+                <span class="slot-desc">Gamepad 1 (A: Akt1, B: Akt2)</span>
+                <button class="btn-slot-toggle ${p3Joined ? "active" : ""}" data-slot="2">
+                  ${p3Joined ? "Dabei" : "Beitreten"}
+                </button>
+              </div>
+
+              <div class="player-slot ${p4Joined ? "active" : "inactive"}" data-slot="3">
+                <span class="badge p4-badge">P4</span>
+                <span class="slot-desc">Gamepad 2 (A: Akt1, B: Akt2)</span>
+                <button class="btn-slot-toggle ${p4Joined ? "active" : ""}" data-slot="3">
+                  ${p4Joined ? "Dabei" : "Beitreten"}
+                </button>
+              </div>
+            </div>
+
             <div class="card-actions">
               <button id="btn-start" class="btn btn-primary">Spiel starten</button>
             </div>
             <div class="controls-hint">
-              <span>Steuerung: Tastatur (P1: Pfeiltasten, P2: WASD) & Gamepads</span>
+              <span>Pause: Esc / P / Gamepad Start</span>
             </div>
           </div>
         `;
         break;
+      }
 
       case "paused":
         html = `
@@ -72,7 +115,7 @@ export class Overlay {
       case "running":
         html = `
           <div class="hud-bar">
-            <button id="btn-pause" class="btn btn-small">Pause</button>
+            <button id="btn-pause" class="btn btn-small">Pause (Esc)</button>
           </div>
         `;
         break;
@@ -94,6 +137,14 @@ export class Overlay {
       this.container
         .querySelector("#btn-start")
         ?.addEventListener("click", () => this.callbacks.onStart());
+
+      this.container.querySelectorAll(".btn-slot-toggle").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const target = e.currentTarget as HTMLElement;
+          const slot = Number(target.dataset.slot) as PlayerIndex;
+          this.callbacks.onTogglePlayerSlot?.(slot);
+        });
+      });
     } else if (phase === "running") {
       this.container
         .querySelector("#btn-pause")
