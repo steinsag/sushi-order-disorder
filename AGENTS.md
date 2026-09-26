@@ -1,4 +1,4 @@
-# AGENTS.md — Technische Grundlage (lokales 2D-Browser-Coop-Spiel)
+# AGENTS.md — Technische Grundlage (lokales 2.5D-Browser-Coop-Spiel)
 
 **Wichtiger Hinweis:** Diese Datei dokumentiert **ausschließlich** die technische Grundlage/Architektur.  
 **Alle Spielregeln, Inhalte, Ziele und die Spielbeschreibung stehen ausschließlich in `README.md`.**  
@@ -10,7 +10,9 @@ Wenn du wissen willst, *worum es im Spiel geht* oder *wie es gespielt wird*, lie
 
 - **Build/Dev:** Vite
 - **Sprache:** TypeScript
-- **Rendering:** HTML **`<canvas>`** (2D-Context)
+- **Rendering:** HTML **`<canvas>`** mit 2D-Context und Sprite-basiertem 2.5D-Look
+- **Darstellung:** 2D-Sprites, Ebenen und Tiefensortierung erzeugen räumliche Wirkung; keine Echtzeit-3D-Geometrie als Voraussetzung
+- **Assets:** Sprite-Bilder und optionale Sprite-Sheets/Atlanten liegen als Projektassets vor und werden zentral geladen
 - **Input:** Browser **Gamepad API** + Tastatur
 - **Spieler:** maximal **4** lokale Spieler
 - **Bewegung:** frei & flüssig in 2D inkl. **Diagonalbewegung**  
@@ -43,8 +45,13 @@ Beispielhafte Ordner:
     - `PlayerState.ts` (Position, Velocity, Actions, Device Binding)
     - `WorldState.ts` (Sammlung Entities/Spieler, globale Daten)
   - `render/`
-    - `Renderer.ts` (Canvas-Rendering; keine Game-Logik)
-    - `Camera.ts` (optional: Viewport/Transform)
+    - `Renderer.ts` (Canvas-Rendering und Szenenaufbau; keine Game-Logik)
+    - `SpriteRenderer.ts` (Sprites, Ankerpunkte, Animationen und Tiefensortierung)
+    - `AssetLoader.ts` (zentraler, asynchroner Bild-/Sprite-Loader)
+    - `Camera.ts` (Viewport, Skalierung und optionaler Welt-/Bildschirm-Transform)
+  - `assets/`
+    - `sprites/` (Figuren, Umgebung und weitere Bildressourcen)
+    - `spritesheet/` (optional: Atlanten und zugehörige Metadaten)
   - `math/`
     - `Vec2.ts` (Vektorrechnung, Normalisierung)
     - `Clamp.ts`, `Deadzone.ts`
@@ -60,8 +67,20 @@ Beispielhafte Ordner:
   - Physik/Bewegung (Positionsintegration) durchführen
   - Kollisionen *technisch* möglich, aber **keine** Regeln/Inhalte hier dokumentieren
 - **Render**:
-  - aktuellen Zustand zeichnen (Canvas-API)
-  - keine Zustandsänderungen (außer debug overlays)
+  - aktuellen Zustand als Sprite-Szene zeichnen (Canvas 2D API)
+  - Renderobjekte anhand ihrer Boden-/Fußposition oder eines expliziten Tiefenwerts sortieren
+  - keine Spielzustände ändern (außer debug overlays)
+
+### 2.5D-Sprite-Darstellung
+
+- Die Spielwelt bleibt technisch zweidimensional; räumliche Wirkung entsteht durch Sprite-Art, Überlagerung, Größen-/Ebenenwirkung und Tiefensortierung.
+- Figuren und Objekte werden als Bildressourcen gerendert. Platzhalter-Kreise sind nur für Debug-Overlays zulässig, nicht als reguläre Spieldarstellung.
+- Trenne Weltkoordinaten von Bildschirmkoordinaten. Die Kamera übernimmt Skalierung und Viewport-Transform; Spiellogik und Kollisionen bleiben in Weltkoordinaten.
+- Verankere bewegliche Sprites an einer definierten Boden-/Fußposition. Die Position im Weltzustand repräsentiert diesen Anker, damit sichtbare Sprite-Höhe die Bewegung und Sortierung nicht verfälscht.
+- Sortiere Renderobjekte stabil nach Bodenposition/Tiefenwert, damit Figuren vor oder hinter passenden Szenenobjekten gezeichnet werden. Verwende bei Gleichstand eine deterministische Zusatzreihenfolge.
+- Sprite-Größe, Ankerpunkt, Animation-Frames und Tiefeninformation gehören in Render-Metadaten und dürfen den Gameplay-Zustand nicht unnötig vermischen.
+- Lade Assets zentral und asynchron. Der Renderer muss mit einem neutralen Ladezustand umgehen können, bis benötigte Bilder verfügbar sind.
+- Begrenze Bildglättung und Skalierung konsistent mit der gewählten Sprite-Art; die konkrete Stilentscheidung und Motive sind Spielinhalt, keine Architekturvorgabe.
 
 ### 2) Game Loop
 
@@ -290,9 +309,9 @@ function updatePlayer(p: PlayerState, dt: number, speed = 240) {
 
 ---
 
-## Canvas-Rendering (2D)
+## Canvas-Rendering (2.5D mit Sprites)
 
-### Grundsetup
+### Canvas-Grundsetup
 
 - Canvas auf DPR (devicePixelRatio) skalieren für Schärfe
 - Render-Funktion zeichnet ausschließlich aus dem aktuellen State
@@ -310,25 +329,70 @@ function resizeCanvas(canvas: HTMLCanvasElement) {
 }
 ```
 
+### Renderdaten und Ankerpunkt
+
+Der Gameplay-Zustand hält Position und Bewegung in Weltkoordinaten. Der Renderer leitet daraus Bildschirmposition, Sprite-Rechteck und Sortiertiefe ab.
+
+```ts
+export interface SpriteRenderState {
+  image: HTMLImageElement;
+  worldX: number;
+  worldY: number; // Boden-/Fußposition auf der Spielebene
+  width: number;
+  height: number;
+  anchorX: number; // normiert von 0 bis 1
+  anchorY: number; // normiert von 0 bis 1; meist am unteren Sprite-Rand
+  depth?: number;  // überschreibt bei Bedarf die aus worldY abgeleitete Tiefe
+  sortOrder?: number; // deterministischer Tie-Breaker bei gleicher Tiefe
+}
+```
+
+Die Bildposition ergibt sich aus dem Ankerpunkt. Damit liegt die Fußposition unabhängig von der transparenten Fläche und der Höhe des Bildes an der Weltposition.
+
+```ts
+function drawSprite(
+  ctx: CanvasRenderingContext2D,
+  sprite: SpriteRenderState,
+  screenX: number,
+  screenY: number,
+) {
+  ctx.drawImage(
+    sprite.image,
+    screenX - sprite.width * sprite.anchorX,
+    screenY - sprite.height * sprite.anchorY,
+    sprite.width,
+    sprite.height,
+  );
+}
+```
+
 ### Render-Loop (Beispiel)
 
 ```ts
-function render(ctx: CanvasRenderingContext2D, players: PlayerState[]) {
+function render(
+  ctx: CanvasRenderingContext2D,
+  sprites: SpriteRenderState[],
+  camera: Camera,
+) {
   const w = ctx.canvas.getBoundingClientRect().width;
   const h = ctx.canvas.getBoundingClientRect().height;
 
   ctx.clearRect(0, 0, w, h);
 
-  // Technische Darstellung (z. B. Kreise pro Spieler)
-  for (const p of players) {
-    ctx.beginPath();
-    ctx.arc(p.pos.x, p.pos.y, 12, 0, Math.PI * 2);
-    ctx.fill();
+  // Weltpositionen in Bildschirmpositionen transformieren und nach Tiefe sortieren.
+  const ordered = [...sprites].sort((a, b) =>
+    (a.depth ?? a.worldY) - (b.depth ?? b.worldY)
+      || (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+  );
+
+  for (const sprite of ordered) {
+    const screen = camera.worldToScreen({ x: sprite.worldX, y: sprite.worldY });
+    drawSprite(ctx, sprite, screen.x, screen.y);
   }
 }
 ```
 
-> Hinweis: Konkrete Farben, Sprites, UI, Effekte etc. sind Inhalte und gehören in `README.md` bzw. in Spielassets – **nicht** in diese technische Datei.
+> Hinweis: Konkrete Motive und Spielinhalte werden in `README.md` beschrieben und als Dateien in den Spielassets gepflegt. Diese technische Datei legt nur das Sprite-/Render-Verfahren fest.
 
 ---
 
@@ -379,6 +443,9 @@ class InputSystem {
 - **Clamping dt:** verhindert Teleporting bei Tab-Wechsel/Frame-Drops.
 - **Event + Polling:** `gamepadconnected`/`gamepaddisconnected` nützlich für UI/Bindings, aber State immer via Polling lesen.
 - **Max 4 Spieler:** feste Arrays/Slots vereinfachen Architektur und Rendering.
+- **Sprite-Tiefe:** Sortiertiefe muss aus der Bodenposition oder einem expliziten Tiefenwert folgen, nicht aus der oberen Bildkante.
+- **Asset-Ladezustand:** Rendern darf nicht abstürzen, wenn ein Sprite noch lädt oder fehlt; Lade-/Fehlerzustände zentral behandeln.
+- **Canvas-Größe:** DPR-Änderung und Fenster-Resize müssen Canvas-Auflösung und Kamera-Viewport aktualisieren.
 
 ---
 
