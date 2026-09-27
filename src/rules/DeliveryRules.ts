@@ -12,8 +12,8 @@ export interface DeliveryEvaluationResult {
   readonly type: DeliveryFeedbackType;
   readonly matchedOrder: ActiveOrder | null;
   readonly scoreDelta: number;
-  readonly message: string;
-  readonly recipeId?: RecipeId;
+  readonly recipeId: RecipeId;
+  readonly isExpress: boolean;
 }
 
 export interface DeliveryOutcome {
@@ -54,16 +54,13 @@ export function evaluateDelivery(
       true,
       matchedOrder.isExpress,
     );
-    const expressPrefix = matchedOrder.isExpress ? "⚡ " : "";
-    const message = `${expressPrefix}${recipe.emoji} ${recipe.name} pünktlich geliefert! (+${scoreDelta})`;
-
     return {
       result: {
         type: "success",
         matchedOrder,
         scoreDelta,
-        message,
         recipeId: recipe.id,
+        isExpress: matchedOrder.isExpress,
       },
       updatedActiveOrders: activeOrders.filter((o) => o.id !== matchedOrder.id),
     };
@@ -86,15 +83,13 @@ export function evaluateDelivery(
       false,
       matchedOrder.isExpress,
     );
-    const message = `${recipe.emoji} ${recipe.name} verspätet geliefert! (+${scoreDelta})`;
-
     return {
       result: {
         type: "late",
         matchedOrder,
         scoreDelta,
-        message,
         recipeId: recipe.id,
+        isExpress: matchedOrder.isExpress,
       },
       updatedActiveOrders: activeOrders.filter((o) => o.id !== matchedOrder.id),
     };
@@ -103,15 +98,13 @@ export function evaluateDelivery(
   // 3. No matching order found: wrong dish penalty
   const recipe = getRecipeDefinition(carriedPlate.recipeId);
   const penalty = getWrongDeliveryPenalty();
-  const message = `Falsches Gericht: ${recipe.emoji} ${recipe.name}! (-${penalty})`;
-
   return {
     result: {
       type: "wrong",
       matchedOrder: null,
       scoreDelta: -penalty,
-      message,
       recipeId: recipe.id,
+      isExpress: false,
     },
     updatedActiveOrders: activeOrders,
   };

@@ -17,5 +17,4 @@
   <!-- Status light -->
   <circle cx="48" cy="19" r="2" fill="#22c55e" />
   <!-- Sign Text -->
-  <text x="48" y="46" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#fef08a" text-anchor="middle">REISKOCHER</text>
 </svg>

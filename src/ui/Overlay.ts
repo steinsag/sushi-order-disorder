@@ -3,6 +3,7 @@ import type { PlayerIndex } from "../input/PlayerInput";
 import { INGREDIENT_METADATA } from "../rules/IngredientConfig";
 import { getRecipeDefinition } from "../rules/RecipeConfig";
 import { calculateShiftRating } from "../rules/ShiftConfig";
+import { i18n } from "../i18n";
 
 export interface OverlayCallbacks {
   onStart: () => void;
@@ -16,22 +17,30 @@ export class Overlay {
   private readonly callbacks: OverlayCallbacks;
   private readonly container: HTMLElement;
   private currentHtml = "";
+  private lastState: WorldState | null = null;
+  private readonly onLanguageChanged = (): void => {
+    this.currentHtml = "";
+    if (this.lastState) this.render(this.lastState);
+  };
 
   constructor(root: HTMLElement, callbacks: OverlayCallbacks) {
     this.callbacks = callbacks;
     this.container = document.createElement("div");
     this.container.className = "ui-overlay";
     root.appendChild(this.container);
+    i18n.on("languageChanged", this.onLanguageChanged);
   }
 
   public render(state: WorldState): void {
+    this.lastState = state;
+    const t = i18n.t.bind(i18n);
     let html = "";
 
     switch (state.phase) {
       case "loading":
         html = `
           <div class="overlay-card loading-card">
-            <h2>Lade Sushi Order Disorder...</h2>
+            <h2>${t("loading")}</h2>
             <div class="spinner"></div>
           </div>
         `;
@@ -40,9 +49,9 @@ export class Overlay {
       case "error":
         html = `
           <div class="overlay-card error-card">
-            <h2>⚠️ Fehler aufgetreten</h2>
-            <p class="error-msg">${state.errorMessage ?? "Ein unerwarteter Fehler ist aufgetreten."}</p>
-            <button id="btn-retry" class="btn btn-primary">Erneut versuchen</button>
+            <h2>⚠️ ${t("error.heading")}</h2>
+            <p class="error-msg">${state.errorMessage ?? t("error.unexpected")}</p>
+            <button id="btn-retry" class="btn btn-primary">${t("error.retry")}</button>
           </div>
         `;
         break;
@@ -52,51 +61,56 @@ export class Overlay {
         const p2Joined = state.players[1].joined;
         const p3Joined = state.players[2].joined;
         const p4Joined = state.players[3].joined;
+        const currentLanguage = i18n.resolvedLanguage === "de" ? "de" : "en";
 
         html = `
           <div class="overlay-card title-card">
+            <div class="language-switch" role="group" aria-label="${t("language.label")}">
+              <button type="button" class="language-option" data-language="en" aria-label="${t("language.english")}" aria-pressed="${currentLanguage === "en"}">🇬🇧 <span>EN</span></button>
+              <button type="button" class="language-option" data-language="de" aria-label="${t("language.german")}" aria-pressed="${currentLanguage === "de"}">🇩🇪 <span>DE</span></button>
+            </div>
             <h1 class="game-title">🍣 Sushi Order Disorder</h1>
-            <p class="tagline">Lokales Koop-Küchen-Chaos (2–4 Spieler)</p>
+            <p class="tagline">${t("menu.tagline")}</p>
 
             <div class="players-setup">
               <div class="player-slot ${p1Joined ? "active" : "inactive"}" data-slot="0">
                 <span class="badge p1-badge">P1</span>
-                <span class="slot-desc">Pfeiltasten (K: Akt1, L: Akt2)</span>
+                <span class="slot-desc">${t("menu.arrows")}</span>
                 <button class="btn-slot-toggle ${p1Joined ? "active" : ""}" data-slot="0">
-                  ${p1Joined ? "Dabei" : "Beitreten"}
+                  ${t(p1Joined ? "menu.joined" : "menu.join")}
                 </button>
               </div>
 
               <div class="player-slot ${p2Joined ? "active" : "inactive"}" data-slot="1">
                 <span class="badge p2-badge">P2</span>
-                <span class="slot-desc">WASD (F: Akt1, G: Akt2)</span>
+                <span class="slot-desc">${t("menu.wasd")}</span>
                 <button class="btn-slot-toggle ${p2Joined ? "active" : ""}" data-slot="1">
-                  ${p2Joined ? "Dabei" : "Beitreten"}
+                  ${t(p2Joined ? "menu.joined" : "menu.join")}
                 </button>
               </div>
 
               <div class="player-slot ${p3Joined ? "active" : "inactive"}" data-slot="2">
                 <span class="badge p3-badge">P3</span>
-                <span class="slot-desc">Gamepad 1 (A: Akt1, B: Akt2)</span>
+                <span class="slot-desc">${t("menu.gamepad", { number: 1 })}</span>
                 <button class="btn-slot-toggle ${p3Joined ? "active" : ""}" data-slot="2">
-                  ${p3Joined ? "Dabei" : "Beitreten"}
+                  ${t(p3Joined ? "menu.joined" : "menu.join")}
                 </button>
               </div>
 
               <div class="player-slot ${p4Joined ? "active" : "inactive"}" data-slot="3">
                 <span class="badge p4-badge">P4</span>
-                <span class="slot-desc">Gamepad 2 (A: Akt1, B: Akt2)</span>
+                <span class="slot-desc">${t("menu.gamepad", { number: 2 })}</span>
                 <button class="btn-slot-toggle ${p4Joined ? "active" : ""}" data-slot="3">
-                  ${p4Joined ? "Dabei" : "Beitreten"}
+                  ${t(p4Joined ? "menu.joined" : "menu.join")}
                 </button>
               </div>
             </div>
 
             <div class="card-actions">
-              <button id="btn-start" class="btn btn-primary">Spiel starten</button>
+              <button id="btn-start" class="btn btn-primary">${t("menu.start")}</button>
             </div>
             <div class="controls-hint">
-              <span>Pause: Esc / P / Gamepad Start</span>
+              <span>${t("menu.pauseHint")}</span>
             </div>
           </div>
         `;
@@ -106,10 +120,10 @@ export class Overlay {
       case "paused":
         html = `
           <div class="overlay-card pause-card">
-            <h2>⏸️ Spiel Pausiert</h2>
+            <h2>⏸️ ${t("pause.heading")}</h2>
             <div class="card-actions">
-              <button id="btn-resume" class="btn btn-primary">Fortsetzen</button>
-              <button id="btn-reset" class="btn btn-secondary">Hauptmenü</button>
+              <button id="btn-resume" class="btn btn-primary">${t("pause.resume")}</button>
+              <button id="btn-reset" class="btn btn-secondary">${t("summary.mainMenu")}</button>
             </div>
           </div>
         `;
@@ -118,6 +132,7 @@ export class Overlay {
       case "completed": {
         const scoreState = state.scoreState;
         const rating = calculateShiftRating(scoreState);
+        const ratingKey = `ratings.${rating.stars}`;
         const totalOrders = scoreState.completedOrders;
         const onTime = scoreState.onTimeOrders;
         const late = scoreState.lateOrders;
@@ -125,38 +140,38 @@ export class Overlay {
 
         html = `
           <div class="overlay-card summary-card">
-            <h1 class="summary-title">🏁 Schicht beendet!</h1>
+            <h1 class="summary-title">🏁 ${t("summary.heading")}</h1>
             <div class="rating-box">
-              <div class="rating-title">${rating.title}</div>
-              <p class="rating-description">${rating.description}</p>
+              <div class="rating-title">${"⭐".repeat(rating.stars)} ${t(`${ratingKey}.title`)}</div>
+              <p class="rating-description">${t(`${ratingKey}.description`)}</p>
             </div>
 
             <div class="summary-stats-grid">
               <div class="stat-box stat-highlight">
-                <span class="stat-label">🏆 Gesamtpunkte</span>
+                <span class="stat-label">🏆 ${t("summary.totalScore")}</span>
                 <span class="stat-value">${scoreState.totalScore}</span>
               </div>
               <div class="stat-box">
-                <span class="stat-label">✅ Pünktlich geliefert</span>
+                <span class="stat-label">✅ ${t("summary.onTime")}</span>
                 <span class="stat-value">${onTime}</span>
               </div>
               <div class="stat-box">
-                <span class="stat-label">⏳ Verspätet geliefert</span>
+                <span class="stat-label">⏳ ${t("summary.late")}</span>
                 <span class="stat-value">${late}</span>
               </div>
               <div class="stat-box">
-                <span class="stat-label">❌ Falsche Lieferungen</span>
+                <span class="stat-label">❌ ${t("summary.wrong")}</span>
                 <span class="stat-value">${wrong}</span>
               </div>
               <div class="stat-box">
-                <span class="stat-label">📦 Bestellungen gesamt</span>
+                <span class="stat-label">📦 ${t("summary.totalOrders")}</span>
                 <span class="stat-value">${totalOrders}</span>
               </div>
             </div>
 
             <div class="card-actions">
-              <button id="btn-restart" class="btn btn-primary">Neue Schicht starten</button>
-              <button id="btn-menu" class="btn btn-secondary">Hauptmenü</button>
+              <button id="btn-restart" class="btn btn-primary">${t("summary.restart")}</button>
+              <button id="btn-menu" class="btn btn-secondary">${t("summary.mainMenu")}</button>
             </div>
           </div>
         `;
@@ -187,9 +202,9 @@ export class Overlay {
                 .map((ing) => {
                   const meta = INGREDIENT_METADATA[ing];
                   return `
-                    <span class="recipe-ingredient-tag" title="${meta.label}">
+                    <span class="recipe-ingredient-tag" title="${t(`ingredients.${ing}`)}">
                       <span class="ing-emoji">${meta.emoji}</span>
-                      <span class="ing-label">${meta.label}</span>
+                      <span class="ing-label">${t(`ingredients.${ing}`)}</span>
                     </span>
                   `;
                 })
@@ -198,8 +213,8 @@ export class Overlay {
               return `
                 <div class="recipe-card ${isExpired ? "card-expired" : ""} ${order.isExpress ? "card-express" : ""}" data-order-id="${order.id}">
                   <div class="recipe-card-header">
-                    <span class="recipe-title">${recipe.emoji} ${recipe.name}</span>
-                    ${order.isExpress ? '<span class="express-badge">⚡ Express</span>' : ""}
+                    <span class="recipe-title">${recipe.emoji} ${t(`recipes.${recipe.id}`)}</span>
+                    ${order.isExpress ? `<span class="express-badge">⚡ ${t("hud.express")}</span>` : ""}
                   </div>
                   <div class="recipe-ingredients-list">
                     ${ingredientsHtml}
@@ -209,7 +224,7 @@ export class Overlay {
                       <div class="recipe-timer-fill ${timeClass}" style="width: ${pct}%;"></div>
                     </div>
                     <span class="recipe-timer-text ${timeClass}">
-                      ${isExpired ? "Abgelaufen" : `${Math.ceil(order.timeRemaining)}s`}
+                      ${isExpired ? t("hud.expired") : `${Math.ceil(order.timeRemaining)}s`}
                     </span>
                   </div>
                 </div>
@@ -220,13 +235,13 @@ export class Overlay {
           ordersHtml = `
             <div class="pending-order-banner">
               <span class="bell-icon">🛎️</span>
-              <span class="banner-text">Neue Bestellung an der Bestellannahme bereit! (Akt1)</span>
+              <span class="banner-text">${t("hud.pendingOrder")}</span>
             </div>
           `;
         } else {
           ordersHtml = `
             <div class="pending-order-banner empty-banner">
-              <span class="banner-text">Warte auf Gäste...</span>
+              <span class="banner-text">${t("hud.waiting")}</span>
             </div>
           `;
         }
@@ -235,14 +250,14 @@ export class Overlay {
         const joinedPlayersHtml = state.players
           .map((p) => {
             if (!p.joined) return "";
-            let itemText = "leer";
+            let itemText = t("hud.empty");
             if (p.carriedItem) {
               if (p.carriedItem.type === "plate") {
                 const r = getRecipeDefinition(p.carriedItem.recipeId);
-                itemText = `${r.emoji} ${r.name}`;
+                itemText = `${r.emoji} ${t(`recipes.${r.id}`)}`;
               } else {
                 const ing = INGREDIENT_METADATA[p.carriedItem.ingredient];
-                itemText = `${ing.emoji} ${ing.label}`;
+                itemText = `${ing.emoji} ${t(`ingredients.${p.carriedItem.ingredient}`)}`;
               }
             }
             return `
@@ -256,9 +271,23 @@ export class Overlay {
 
         // 3. Render delivery feedback toast if active
         const feedback = state.scoreState?.recentFeedback;
+        const feedbackRecipe =
+          feedback && getRecipeDefinition(feedback.recipeId);
+        const feedbackText =
+          feedback && feedbackRecipe
+            ? t(`feedback.${feedback.type}`, {
+                prefix:
+                  feedback.isExpress && feedback.type === "success"
+                    ? "⚡ "
+                    : "",
+                emoji: feedbackRecipe.emoji,
+                recipe: t(`recipes.${feedback.recipeId}`),
+                points: Math.abs(feedback.scoreDelta),
+              })
+            : "";
         const feedbackHtml = feedback
           ? `<div class="hud-delivery-toast feedback-${feedback.type}">
-              <span class="toast-text">${feedback.message}</span>
+              <span class="toast-text">${feedbackText}</span>
             </div>`
           : "";
 
@@ -282,13 +311,13 @@ export class Overlay {
                 <div class="hud-score-badge">
                   <span class="score-icon">🏆</span>
                   <span class="score-value">${state.scoreState?.totalScore ?? 0}</span>
-                  <span class="score-label">Punkte</span>
+                  <span class="score-label">${t("hud.score")}</span>
                 </div>
               </div>
               ${feedbackHtml}
             </div>
             <div class="hud-controls">
-              <button id="btn-pause" class="btn btn-small">Pause (Esc)</button>
+              <button id="btn-pause" class="btn btn-small">${t("pause.button")}</button>
             </div>
           </div>
           <div class="hud-bottom-bar">
@@ -309,11 +338,21 @@ export class Overlay {
   }
 
   public destroy(): void {
+    i18n.off("languageChanged", this.onLanguageChanged);
     this.container.remove();
   }
 
   private attachListeners(phase: WorldState["phase"]): void {
     if (phase === "title") {
+      this.container.querySelectorAll(".language-option").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          const language = (event.currentTarget as HTMLElement).dataset
+            .language;
+          if (language === "en" || language === "de") {
+            void i18n.changeLanguage(language);
+          }
+        });
+      });
       this.container
         .querySelector("#btn-start")
         ?.addEventListener("click", () => this.callbacks.onStart());

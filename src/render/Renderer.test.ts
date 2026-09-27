@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { Renderer } from "./Renderer";
 import { createInitialWorldState } from "../state/WorldState";
+import { i18n } from "../i18n";
 
-function createMockCanvas(width = 960, height = 540): HTMLCanvasElement {
+function createMockCanvas(
+  width = 960,
+  height = 540,
+  onText: (value: string) => void = () => {},
+): HTMLCanvasElement {
   return {
     width,
     height,
@@ -33,7 +38,7 @@ function createMockCanvas(width = 960, height = 540): HTMLCanvasElement {
       rotate: () => {},
       scale: () => {},
       drawImage: () => {},
-      fillText: () => {},
+      fillText: onText,
       setTransform: () => {},
       font: "",
       fillStyle: "",
@@ -86,5 +91,24 @@ describe("Renderer integration", () => {
     state.phase = "error";
     state.errorMessage = "Test Asset Failure";
     expect(() => renderer.render(state, 0)).not.toThrow();
+  });
+
+  it("renders station labels in the active language", async () => {
+    const text: string[] = [];
+    const renderer = new Renderer(
+      createMockCanvas(960, 540, (value) => text.push(value)),
+    );
+    const state = createInitialWorldState();
+    state.phase = "running";
+
+    await i18n.changeLanguage("en");
+    renderer.render(state);
+    expect(text).toContain("Counter");
+
+    text.length = 0;
+    await i18n.changeLanguage("de");
+    renderer.render(state);
+    expect(text).toContain("Arbeitsfläche");
+    await i18n.changeLanguage("en");
   });
 });

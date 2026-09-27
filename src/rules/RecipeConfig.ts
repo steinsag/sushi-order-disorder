@@ -16,7 +16,7 @@ export interface RecipeDefinition {
 export const RECIPES: Record<RecipeId, RecipeDefinition> = {
   "cucumber-maki": {
     id: "cucumber-maki",
-    name: "Gurken-Maki",
+    name: "Cucumber Maki",
     emoji: "🥒",
     ingredients: ["nori", "rice", "cucumber"],
     baseDuration: 45,
@@ -24,7 +24,7 @@ export const RECIPES: Record<RecipeId, RecipeDefinition> = {
   },
   "salmon-nigiri": {
     id: "salmon-nigiri",
-    name: "Lachs-Nigiri",
+    name: "Salmon Nigiri",
     emoji: "🍣",
     ingredients: ["rice", "salmon"],
     baseDuration: 40,
@@ -32,7 +32,7 @@ export const RECIPES: Record<RecipeId, RecipeDefinition> = {
   },
   "salmon-maki": {
     id: "salmon-maki",
-    name: "Lachs-Maki",
+    name: "Salmon Maki",
     emoji: "🐟",
     ingredients: ["nori", "rice", "salmon"],
     baseDuration: 45,

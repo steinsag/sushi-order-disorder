@@ -105,6 +105,39 @@ body {
   text-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
 }
 
+.title-card {
+  position: relative;
+}
+
+.language-switch {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: -16px -30px 8px 0;
+}
+
+.language-option {
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 4px 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: 600 11px var(--font-family);
+  cursor: pointer;
+}
+
+.language-option[aria-pressed="true"] {
+  border-color: var(--accent-color);
+  color: var(--text-primary);
+  background: rgba(249, 115, 22, 0.14);
+}
+
+.language-option:hover,
+.language-option:focus-visible {
+  color: var(--text-primary);
+  outline-color: var(--accent-color);
+}
+
 .tagline {
   color: var(--text-muted);
   font-size: 16px;

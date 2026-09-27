@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Overlay } from "./Overlay";
 import { createInitialWorldState, type WorldState } from "../state/WorldState";
 import { type ActiveOrder } from "../state/OrderState";
+import { i18n } from "../i18n";
 
 interface MockElement {
   className: string;
@@ -62,6 +63,7 @@ describe("Overlay UI & Recipe Cards", () => {
   const originalDocument = globalThis.document;
 
   beforeEach(() => {
+    void i18n.changeLanguage("en");
     globalThis.document = {
       createElement: () => createMockElement(),
       addEventListener: () => {},
@@ -95,7 +97,7 @@ describe("Overlay UI & Recipe Cards", () => {
     // @ts-expect-error accessing innerHTML on container mock
     const container = overlay["container"] as MockElement;
     expect(container.innerHTML).toContain("pending-order-banner");
-    expect(container.innerHTML).toContain("Bestellannahme bereit");
+    expect(container.innerHTML).toContain("order counter");
     overlay.destroy();
   });
 
@@ -135,13 +137,13 @@ describe("Overlay UI & Recipe Cards", () => {
     expect(html).toContain('data-order-id="ord-test"');
 
     // Title & emoji
-    expect(html).toContain("Gurken-Maki");
+    expect(html).toContain("Cucumber Maki");
     expect(html).toContain("🥒");
 
     // Ingredients
     expect(html).toContain("Nori");
-    expect(html).toContain("Reis");
-    expect(html).toContain("Gurke");
+    expect(html).toContain("Rice");
+    expect(html).toContain("Cucumber");
 
     // Timer countdown and width
     expect(html).toContain("30s");
@@ -182,7 +184,7 @@ describe("Overlay UI & Recipe Cards", () => {
     const html = container.innerHTML;
 
     expect(html).toContain("card-expired");
-    expect(html).toContain("Abgelaufen");
+    expect(html).toContain("Expired");
 
     overlay.destroy();
   });
@@ -209,10 +211,10 @@ describe("Overlay UI & Recipe Cards", () => {
         recentFeedback: {
           id: "fb-1",
           type: "success",
-          message: "🥒 Gurken-Maki pünktlich geliefert! (+100)",
           scoreDelta: 100,
           timeRemaining: 2.5,
           recipeId: "cucumber-maki",
+          isExpress: false,
         },
       },
     };
@@ -227,7 +229,7 @@ describe("Overlay UI & Recipe Cards", () => {
     expect(html).toContain("250");
     expect(html).toContain("hud-delivery-toast");
     expect(html).toContain("feedback-success");
-    expect(html).toContain("Gurken-Maki pünktlich geliefert! (+100)");
+    expect(html).toContain("Cucumber Maki delivered on time! (+100)");
 
     overlay.destroy();
   });
@@ -287,7 +289,7 @@ describe("Overlay UI & Recipe Cards", () => {
     const html = container.innerHTML;
 
     expect(html).toContain("pause-card");
-    expect(html).toContain("Spiel Pausiert");
+    expect(html).toContain("Game paused");
     expect(html).toContain("btn-resume");
     expect(html).toContain("btn-reset");
 
@@ -324,12 +326,68 @@ describe("Overlay UI & Recipe Cards", () => {
     const html = container.innerHTML;
 
     expect(html).toContain("summary-card");
-    expect(html).toContain("Schicht beendet");
-    expect(html).toContain("Meisterköche");
+    expect(html).toContain("Shift complete");
+    expect(html).toContain("Master chefs");
     expect(html).toContain("320");
     expect(html).toContain("btn-restart");
     expect(html).toContain("btn-menu");
 
+    overlay.destroy();
+  });
+
+  it("updates the menu immediately when the UI language changes", async () => {
+    const overlay = new Overlay(createMockElement() as unknown as HTMLElement, {
+      onStart: vi.fn(),
+      onPauseToggle: vi.fn(),
+      onReset: vi.fn(),
+      onRetry: vi.fn(),
+    });
+    const state = createInitialWorldState();
+    overlay.render(state);
+    const container = overlay["container"] as unknown as MockElement;
+
+    expect(container.innerHTML).toContain("Start game");
+    expect(container.innerHTML).toContain('data-language="en"');
+    expect(container.innerHTML).toContain("🇬🇧");
+    expect(container.innerHTML).toContain("🇩🇪");
+
+    await i18n.changeLanguage("de");
+    expect(container.innerHTML).toContain("Spiel starten");
+    expect(container.innerHTML).toContain("Pfeiltasten");
+    expect(container.innerHTML).toContain('data-language="de"');
+    expect(state.phase).toBe("title");
+    overlay.destroy();
+  });
+
+  it("translates an active delivery toast after the language changes", async () => {
+    const overlay = new Overlay(createMockElement() as unknown as HTMLElement, {
+      onStart: vi.fn(),
+      onPauseToggle: vi.fn(),
+      onReset: vi.fn(),
+      onRetry: vi.fn(),
+    });
+    const state: WorldState = {
+      ...createInitialWorldState(),
+      phase: "running",
+      scoreState: {
+        ...createInitialWorldState().scoreState,
+        recentFeedback: {
+          id: "feedback-1",
+          type: "success",
+          scoreDelta: 150,
+          timeRemaining: 2,
+          recipeId: "salmon-nigiri",
+          isExpress: true,
+        },
+      },
+    };
+    overlay.render(state);
+    const container = overlay["container"] as unknown as MockElement;
+    expect(container.innerHTML).toContain("Salmon Nigiri delivered on time");
+
+    await i18n.changeLanguage("de");
+    expect(container.innerHTML).toContain("Lachs-Nigiri pünktlich geliefert");
+    expect(container.innerHTML).toContain("⚡");
     overlay.destroy();
   });
 });

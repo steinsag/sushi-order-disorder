@@ -553,9 +553,9 @@ function handleAction1(
         const updatedScoreState = applyDeliveryFeedback(
           state.scoreState,
           outcome.result.type,
-          outcome.result.message,
           outcome.result.scoreDelta,
           outcome.result.recipeId,
+          outcome.result.isExpress,
         );
 
         const updatedPlayers = [...state.players] as typeof state.players;

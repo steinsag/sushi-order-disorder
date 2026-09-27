@@ -61,8 +61,6 @@ export function getShiftProgression(progress: number): ShiftProgression {
 
 export interface ShiftRating {
   readonly stars: 0 | 1 | 2 | 3;
-  readonly title: string;
-  readonly description: string;
 }
 
 export const SHIFT_STAR_THRESHOLDS = {
@@ -74,32 +72,13 @@ export const SHIFT_STAR_THRESHOLDS = {
 export function calculateShiftRating(scoreState: ScoreState): ShiftRating {
   const score = scoreState.totalScore;
   if (score >= SHIFT_STAR_THRESHOLDS.threeStars) {
-    return {
-      stars: 3,
-      title: "⭐⭐⭐ Meisterköche",
-      description:
-        "Hervorragende Zusammenarbeit und meisterhafte Küchenleistung!",
-    };
+    return { stars: 3 };
   }
   if (score >= SHIFT_STAR_THRESHOLDS.twoStars) {
-    return {
-      stars: 2,
-      title: "⭐⭐ Eingespieltes Team",
-      description: "Gute Küchenleistung mit solider Organisation.",
-    };
+    return { stars: 2 };
   }
   if (score >= SHIFT_STAR_THRESHOLDS.oneStar) {
-    return {
-      stars: 1,
-      title: "⭐ Küchenlehrlinge",
-      description:
-        "Die Schicht überstanden, aber es gibt noch Ausbaupotenzial.",
-    };
+    return { stars: 1 };
   }
-  return {
-    stars: 0,
-    title: "Küchen-Chaos",
-    description:
-      "Zu viele Bestellungen verpasst oder falsche Gerichte ausgegeben.",
-  };
+  return { stars: 0 };
 }

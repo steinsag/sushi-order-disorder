@@ -13,7 +13,7 @@ describe("DeliveryRules", () => {
     resetOrderCounterForTest();
   });
 
-  it("successfully fulfills an on-time active order and returns correct score and message", () => {
+  it("successfully fulfills an on-time active order and returns correct score and recipe", () => {
     const pending = createPendingOrder("order-1", "cucumber-maki", 45);
     const active = createActiveOrderFromPending(pending);
     const plate = createPlateItem("cucumber-maki");
@@ -23,9 +23,8 @@ describe("DeliveryRules", () => {
     expect(outcome.result.type).toBe("success");
     expect(outcome.result.matchedOrder?.id).toBe("order-1");
     expect(outcome.result.scoreDelta).toBe(100);
-    expect(outcome.result.message).toContain(
-      "🥒 Gurken-Maki pünktlich geliefert! (+100)",
-    );
+    expect(outcome.result.recipeId).toBe("cucumber-maki");
+    expect(outcome.result.isExpress).toBe(false);
     expect(outcome.updatedActiveOrders).toHaveLength(0);
   });
 
@@ -43,9 +42,7 @@ describe("DeliveryRules", () => {
     expect(outcome.result.type).toBe("late");
     expect(outcome.result.matchedOrder?.id).toBe("order-1");
     expect(outcome.result.scoreDelta).toBe(50); // 100 * 0.5
-    expect(outcome.result.message).toContain(
-      "🥒 Gurken-Maki verspätet geliefert! (+50)",
-    );
+    expect(outcome.result.recipeId).toBe("cucumber-maki");
     expect(outcome.updatedActiveOrders).toHaveLength(0);
   });
 
@@ -71,7 +68,7 @@ describe("DeliveryRules", () => {
     expect(outcome.result.type).toBe("wrong");
     expect(outcome.result.matchedOrder).toBeNull();
     expect(outcome.result.scoreDelta).toBe(-20);
-    expect(outcome.result.message).toContain("Falsches Gericht");
+    expect(outcome.result.recipeId).toBe("salmon-nigiri");
     expect(outcome.updatedActiveOrders).toHaveLength(1);
     expect(outcome.updatedActiveOrders[0].id).toBe("order-1");
   });
@@ -87,7 +84,7 @@ describe("DeliveryRules", () => {
     expect(outcome.updatedActiveOrders).toHaveLength(0);
   });
 
-  it("successfully delivers all four MVP recipes with correct points and icons", () => {
+  it("successfully delivers all four MVP recipes with correct points and IDs", () => {
     // 1. Gurken-Maki
     const o1 = createActiveOrderFromPending(
       createPendingOrder("o-1", "cucumber-maki"),
@@ -95,7 +92,7 @@ describe("DeliveryRules", () => {
     const res1 = evaluateDelivery(createPlateItem("cucumber-maki"), [o1]);
     expect(res1.result.type).toBe("success");
     expect(res1.result.scoreDelta).toBe(100);
-    expect(res1.result.message).toContain("🥒 Gurken-Maki");
+    expect(res1.result.recipeId).toBe("cucumber-maki");
 
     // 2. Lachs-Nigiri
     const o2 = createActiveOrderFromPending(
@@ -104,7 +101,7 @@ describe("DeliveryRules", () => {
     const res2 = evaluateDelivery(createPlateItem("salmon-nigiri"), [o2]);
     expect(res2.result.type).toBe("success");
     expect(res2.result.scoreDelta).toBe(100);
-    expect(res2.result.message).toContain("🍣 Lachs-Nigiri");
+    expect(res2.result.recipeId).toBe("salmon-nigiri");
 
     // 3. Lachs-Maki
     const o3 = createActiveOrderFromPending(
@@ -113,7 +110,7 @@ describe("DeliveryRules", () => {
     const res3 = evaluateDelivery(createPlateItem("salmon-maki"), [o3]);
     expect(res3.result.type).toBe("success");
     expect(res3.result.scoreDelta).toBe(120);
-    expect(res3.result.message).toContain("🐟 Lachs-Maki");
+    expect(res3.result.recipeId).toBe("salmon-maki");
 
     // 4. Avocado-Maki
     const o4 = createActiveOrderFromPending(
@@ -122,7 +119,7 @@ describe("DeliveryRules", () => {
     const res4 = evaluateDelivery(createPlateItem("avocado-maki"), [o4]);
     expect(res4.result.type).toBe("success");
     expect(res4.result.scoreDelta).toBe(110);
-    expect(res4.result.message).toContain("🥑 Avocado-Maki");
+    expect(res4.result.recipeId).toBe("avocado-maki");
   });
 
   it("selects the most urgent order when multiple matching orders are active", () => {
@@ -176,7 +173,7 @@ describe("DeliveryRules", () => {
     expect(outcome.result.type).toBe("success");
     expect(outcome.result.matchedOrder?.id).toBe("ord-express");
     expect(outcome.result.scoreDelta).toBe(180); // 120 * 1.5
-    expect(outcome.result.message).toContain("⚡ 🐟 Lachs-Maki");
+    expect(outcome.result.isExpress).toBe(true);
     expect(outcome.updatedActiveOrders).toHaveLength(1);
     expect(outcome.updatedActiveOrders[0].id).toBe("ord-regular");
   });

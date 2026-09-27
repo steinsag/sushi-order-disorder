@@ -19,5 +19,4 @@
   <circle cx="72" cy="16" r="6" fill="#facc15" stroke="#a16207" stroke-width="1.5" />
   <circle cx="72" cy="11" r="2" fill="#ca8a04" />
   <!-- Sign Text / Symbol -->
-  <text x="48" y="46" font-family="system-ui, sans-serif" font-size="11" font-weight="bold" fill="#f8fafc" text-anchor="middle">BESTELLUNG</text>
 </svg>

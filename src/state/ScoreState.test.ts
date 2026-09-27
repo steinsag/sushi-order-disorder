@@ -26,9 +26,9 @@ describe("ScoreState", () => {
     const state = applyDeliveryFeedback(
       initial,
       "success",
-      "Pünktlich geliefert!",
       100,
       "cucumber-maki",
+      false,
       3.0,
     );
 
@@ -46,9 +46,9 @@ describe("ScoreState", () => {
     const state = applyDeliveryFeedback(
       initial,
       "wrong",
-      "Falsches Gericht!",
       -20,
       "cucumber-maki",
+      false,
       3.0,
     );
 
@@ -64,9 +64,9 @@ describe("ScoreState", () => {
     const stateWithFeedback = applyDeliveryFeedback(
       initial,
       "success",
-      "Pünktlich geliefert!",
       100,
       "cucumber-maki",
+      false,
       2.0,
     );
 

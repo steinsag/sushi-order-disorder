@@ -27,5 +27,9 @@
     "typescript-eslint": "^8.70.1",
     "vite": "^8.3.0",
     "vitest": "^5.0.2"
+  },
+  "dependencies": {
+    "i18next": "^26.4.2",
+    "i18next-browser-languagedetector": "^8.2.1"
   }
 }

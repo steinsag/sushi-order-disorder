@@ -19,7 +19,7 @@ export const DEFAULT_STATIONS: readonly StationDefinition[] = [
   {
     id: "station-order",
     type: "order",
-    label: "Bestellannahme",
+    label: "Order counter",
     spriteId: "station_order",
     pos: { x: 160, y: 440 },
     interactionPoint: { x: 160, y: 410 },
@@ -30,7 +30,7 @@ export const DEFAULT_STATIONS: readonly StationDefinition[] = [
   {
     id: "station-rice",
     type: "rice",
-    label: "Reiskocher",
+    label: "Rice cooker",
     spriteId: "station_rice",
     pos: { x: 380, y: 110 },
     interactionPoint: { x: 380, y: 120 },
@@ -41,7 +41,7 @@ export const DEFAULT_STATIONS: readonly StationDefinition[] = [
   {
     id: "station-fridge",
     type: "fridge",
-    label: "Kühlschrank",
+    label: "Fridge",
     spriteId: "station_fridge",
     pos: { x: 600, y: 110 },
     interactionPoint: { x: 600, y: 120 },
@@ -52,7 +52,7 @@ export const DEFAULT_STATIONS: readonly StationDefinition[] = [
   {
     id: "counter-island",
     type: "counter",
-    label: "Arbeitsfläche",
+    label: "Counter",
     spriteId: "counter",
     pos: { x: 480, y: 280 },
     interactionPoint: { x: 480, y: 280 },
@@ -63,7 +63,7 @@ export const DEFAULT_STATIONS: readonly StationDefinition[] = [
   {
     id: "station-roll-1",
     type: "roll",
-    label: "Rollstation 1",
+    label: "Rolling station 1",
     spriteId: "station_roll",
     pos: { x: 380, y: 440 },
     interactionPoint: { x: 380, y: 410 },
@@ -74,7 +74,7 @@ export const DEFAULT_STATIONS: readonly StationDefinition[] = [
   {
     id: "station-roll-2",
     type: "roll",
-    label: "Rollstation 2",
+    label: "Rolling station 2",
     spriteId: "station_roll",
     pos: { x: 570, y: 440 },
     interactionPoint: { x: 570, y: 410 },
@@ -85,7 +85,7 @@ export const DEFAULT_STATIONS: readonly StationDefinition[] = [
   {
     id: "station-delivery",
     type: "delivery",
-    label: "Ausgabe",
+    label: "Delivery counter",
     spriteId: "station_delivery",
     pos: { x: 760, y: 440 },
     interactionPoint: { x: 760, y: 410 },

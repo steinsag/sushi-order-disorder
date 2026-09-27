@@ -1,46 +1,50 @@
 # Sushi Order Disorder 🍣
 
-**Sushi Order Disorder** ist ein lokales Koop-Spiel für 2 bis 4 Personen an einem Bildschirm. Gemeinsam nehmt ihr Bestellungen an, bereitet Sushi zu und liefert es vor Schichtende aus. Alle bewegen sich gleichzeitig durch dieselbe Küche; es gibt keinen Splitscreen.
+**Sushi Order Disorder** is a local co-op game for 2 to 4 players sharing one screen. Work together to take orders, prepare sushi, and deliver it before the shift ends. Everyone moves through the same kitchen at the same time; there is no split screen.
 
-## Spielen
+## Playing
 
-Auf dem Startbildschirm sind Spieler 1 und 2 aktiv. Weitere Spieler können dort mit den Slot-Schaltflächen beitreten; die Slots 3 und 4 verwenden Gamepads. Mit **Spiel starten** beginnt eine zweiminütige Schicht. Neue Bestellungen warten an der Bestellannahme und erscheinen erst nach dem Annehmen als Rezeptkarten im HUD.
+Players 1 and 2 are active on the title screen. Additional players can join with the slot buttons; slots 3 and 4 use gamepads. Select **Start game** to begin a two-minute shift. New orders wait at the order counter and appear as recipe cards in the HUD only after you accept them.
 
-1. Nehmt eine Bestellung an der Bestellannahme mit Aktion 1 an. Die Rezeptkarte zeigt Gericht, Zutaten und verbleibende Zeit. Express-Bestellungen sind gekennzeichnet.
-2. Holt Zutaten am Kühlschrank. Von links nach rechts gibt es Nori, Lachs, Gurke und Avocado; eure Position vor dem Kühlschrank bestimmt das Fach. Am Reiskocher startet Aktion 1 einen Kochvorgang; danach könnt ihr Reisportionen abholen. Jede Figur trägt höchstens einen Gegenstand.
-3. Legt Zutaten mit Aktion 1 auf einer der zwei Rollstationen ab. Wenn genau die Zutaten eines Rezepts bereitliegen, startet eine weitere Aktion 1 die Zubereitung. Bei einer unvollständigen oder falschen Kombination nimmt eine freie Figur mit Aktion 1 den zuletzt abgelegten Gegenstand wieder auf. Die mittlere Arbeitsfläche kann Gegenstände zwischenlagern.
-4. Holt den fertigen Teller mit Aktion 1 ab und bringt ihn zur Ausgabe. Dort liefert Aktion 1 oder 2 ihn aus. Ein passendes Gericht wird einer offenen Bestellung zugeordnet.
+1. Accept an order at the order counter with Action 1. Its recipe card shows the dish, ingredients, and time remaining. Express orders are marked.
+2. Get ingredients from the fridge. From left to right, its compartments contain nori, salmon, cucumber, and avocado; your position in front of the fridge determines the compartment. At the rice cooker, Action 1 starts cooking. You can collect rice portions when they are ready. Each chef can carry one item at a time.
+3. Place ingredients on either rolling station with Action 1. When exactly the ingredients for a recipe are present, press Action 1 again to prepare it. If the combination is incomplete or wrong, a chef with empty hands can use Action 1 to pick up the last item placed. The center counter can hold items temporarily.
+4. Pick up the finished plate with Action 1 and take it to the delivery counter. Action 1 or 2 delivers it there. A matching dish is assigned to an open order.
 
-Falsch abgelegte Zutaten belegen Platz an der Rollstation, bis sie weggeräumt werden. Getragene Gegenstände können mit Aktion 2 auf den Boden gelegt und dort mit Aktion 1 wieder aufgehoben werden. Leere Kühlschrankfächer füllen sich nach kurzer Zeit automatisch auf.
+Wrong ingredients occupy space at a rolling station until someone removes them. You can drop a carried item on the floor with Action 2 and pick it up again with Action 1. Empty fridge compartments refill automatically after a short time.
 
-## Rezepte
+## Recipes
 
-| Gericht | Zutaten |
+| Dish | Ingredients |
 | --- | --- |
-| Lachs-Nigiri | Reis, Lachs |
-| Gurken-Maki | Nori, Reis, Gurke |
-| Lachs-Maki | Nori, Reis, Lachs |
-| Avocado-Maki | Nori, Reis, Avocado |
+| 🍣 Salmon Nigiri | Rice, salmon |
+| 🥒 Cucumber Maki | Nori, rice, cucumber |
+| 🐟 Salmon Maki | Nori, rice, salmon |
+| 🥑 Avocado Maki | Nori, rice, avocado |
 
-Zu Beginn sind Lachs-Nigiri und Gurken-Maki verfügbar. Im Verlauf der Schicht kommen die weiteren Rezepte, mehr gleichzeitige Bestellungen und Express-Aufträge hinzu. Korrekte Lieferungen geben Punkte; verspätete Lieferungen geben weniger Punkte. Ein falsches Gericht kostet Punkte und lässt die Bestellung offen. Am Schichtende zeigt das Spiel die Punktzahl, Lieferstatistik und Bewertung.
+Salmon Nigiri and Cucumber Maki are available at the start. Later in the shift, more recipes, simultaneous orders, and express orders are added. Correct deliveries earn points; late deliveries earn fewer points. A wrong dish costs points and leaves the order open. At the end of the shift, the game shows the score, delivery statistics, and rating.
 
-## Steuerung
+## Controls
 
-| Spieler | Bewegung | Aktion 1 | Aktion 2 |
+| Player | Movement | Action 1 | Action 2 |
 | --- | --- | --- | --- |
-| P1 | Pfeiltasten | K | L |
+| P1 | Arrow keys | K | L |
 | P2 | W, A, S, D | F | G |
-| P3 / P4 | Linker Stick oder Steuerkreuz | A / Cross | B / Circle |
+| P3 / P4 | Left stick or D-pad | A / Cross | B / Circle |
 
-Aktion 1 dient zum Annehmen, Aufnehmen, Ablegen, Bedienen und Ausliefern. Aktion 2 legt getragene Gegenstände auf den Boden oder bricht ohne getragenen Gegenstand einen laufenden Koch- oder Rollvorgang ab. Mit **Esc**, **P**, Gamepad-Start oder der Pause-Schaltfläche pausiert ihr die Schicht; in der Pause laufen keine Spiel-Timer weiter. Die Aktionstasten haben je nach Tastatur und Gamepad weitere gleichwertige Belegungen.
+Action 1 accepts orders, picks up and places items, uses stations, and delivers dishes. Action 2 drops carried items on the floor or, with empty hands, cancels cooking or rolling. **Esc**, **P**, gamepad Start, or the Pause button pauses the shift; game timers stop while paused. The action buttons also have equivalent keyboard and gamepad bindings.
 
-## Lokal starten
+## Language
 
-Voraussetzungen: Node.js >= 22 und npm.
+The game offers English and German. It uses your browser's preferred language when available and otherwise starts in English. Use the flag buttons on the title screen to switch languages; your choice is saved in this browser.
+
+## Run locally
+
+Requirements: Node.js >= 22 and npm.
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Die von Vite ausgegebene lokale URL im Browser öffnen. `npm run check` führt Formatprüfung, ESLint, Typprüfung, Vitest und Build aus. `npm run format` formatiert den Code und die ausgewählten Konfigurationsdateien.
+Open the local URL printed by Vite in a browser. `npm run check` runs the format check, ESLint, type checking, Vitest, and the build. `npm run format` formats the code and selected configuration files.

@@ -83,7 +83,6 @@ describe("ShiftConfig", () => {
 
       const rating = calculateShiftRating(score);
       expect(rating.stars).toBe(3);
-      expect(rating.title).toContain("Meisterköche");
     });
 
     it("awards 2 stars when score reaches 2-star threshold", () => {
@@ -96,7 +95,6 @@ describe("ShiftConfig", () => {
 
       const rating = calculateShiftRating(score);
       expect(rating.stars).toBe(2);
-      expect(rating.title).toContain("Eingespieltes Team");
     });
 
     it("awards 1 star when score reaches 1-star threshold", () => {
@@ -109,7 +107,6 @@ describe("ShiftConfig", () => {
 
       const rating = calculateShiftRating(score);
       expect(rating.stars).toBe(1);
-      expect(rating.title).toContain("Küchenlehrlinge");
     });
 
     it("awards 0 stars when score is below 1-star threshold", () => {
@@ -122,7 +119,6 @@ describe("ShiftConfig", () => {
 
       const rating = calculateShiftRating(score);
       expect(rating.stars).toBe(0);
-      expect(rating.title).toContain("Küchen-Chaos");
     });
   });
 });

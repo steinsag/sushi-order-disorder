@@ -13,14 +13,18 @@ import { INGREDIENT_METADATA } from "../rules/IngredientConfig";
 import { findMatchingRecipe, getRecipeDefinition } from "../rules/RecipeConfig";
 import { getFridgeIngredientForPlayerPos } from "../rules/InteractionRules";
 import type { Item } from "../state/ItemState";
+import { i18n } from "../i18n";
 
 function getItemDisplay(item: Item): { emoji: string; label: string } {
   if (item.type === "plate") {
     const recipe = getRecipeDefinition(item.recipeId);
-    return { emoji: recipe.emoji, label: recipe.name };
+    return { emoji: recipe.emoji, label: i18n.t(`recipes.${recipe.id}`) };
   }
   const ingMeta = INGREDIENT_METADATA[item.ingredient];
-  return { emoji: ingMeta.emoji, label: ingMeta.label };
+  return {
+    emoji: ingMeta.emoji,
+    label: i18n.t(`ingredients.${item.ingredient}`),
+  };
 }
 
 export interface RendererOptions {
@@ -115,6 +119,7 @@ export class Renderer {
   }
 
   public render(state: WorldState, dt = 0): void {
+    const t = i18n.t.bind(i18n);
     const ctx = this.ctx;
     const w = this.width;
     const h = this.height;
@@ -158,7 +163,8 @@ export class Renderer {
         ? targetingPlayers.map((p) => `P${p.id + 1}`).join(" ") + " "
         : "";
 
-      let stationText = "";
+      const station = DEFAULT_STATIONS.find((entry) => entry.id === obj.id);
+      let stationText = station ? t(`stations.${station.type}`) : "";
       let stationProgressBar: SpriteProgressBar | undefined = undefined;
 
       if (obj.id === "station-order" && state.orderStation) {
@@ -166,18 +172,20 @@ export class Renderer {
           const isExp = state.orderStation.pendingOrder.isExpress;
           stationText = isTargeted
             ? isExp
-              ? "⚡ Express Annehmen (Akt1)"
-              : "🛎️ Annehmen (Akt1)"
+              ? t("stations.acceptExpress")
+              : t("stations.accept")
             : isExp
-              ? "⚡ Neue Express-Bestellung!"
-              : "🛎️ Neue Bestellung!";
+              ? t("stations.newExpress")
+              : t("stations.newOrder");
         } else {
-          stationText = "Keine neue Bestellung";
+          stationText = t("stations.noOrder");
         }
       } else if (obj.id === "station-rice" && state.riceCooker) {
         const rc = state.riceCooker;
         if (rc.state === "cooking") {
-          stationText = `♨️ Kocht... (${rc.cookTimeRemaining.toFixed(1)}s)`;
+          stationText = t("stations.cooking", {
+            seconds: rc.cookTimeRemaining.toFixed(1),
+          });
           stationProgressBar = {
             progress: rc.cookingProgress,
             label: `♨️ ${rc.cookTimeRemaining.toFixed(1)}s`,
@@ -192,12 +200,16 @@ export class Renderer {
           const portionDots =
             "●".repeat(rc.portions) + "○".repeat(rc.maxPortions - rc.portions);
           stationText = isTargeted
-            ? `🍚 Nehmen (Akt1) [${portionDots}]`
-            : `🍚 Reis [${portionDots}] (${rc.portions}/${rc.maxPortions})`;
+            ? t("stations.takeRice", { dots: portionDots })
+            : t("stations.riceReady", {
+                dots: portionDots,
+                count: rc.portions,
+                max: rc.maxPortions,
+              });
         } else {
           stationText = isTargeted
-            ? "🍚 Kochen starten (Akt1)"
-            : "🍚 Reiskocher leer (Akt1)";
+            ? t("stations.startRice")
+            : t("stations.riceEmpty");
         }
       } else if (
         (obj.id.startsWith("station-roll") ||
@@ -211,7 +223,10 @@ export class Renderer {
             : state.rollStation);
         if (rs.state === "rolling" && rs.rollingRecipeId) {
           const recipe = getRecipeDefinition(rs.rollingRecipeId);
-          stationText = `🔄 Rollt ${recipe.name}... (${rs.rollingTimeRemaining.toFixed(1)}s)`;
+          stationText = t("stations.rolling", {
+            recipe: t(`recipes.${recipe.id}`),
+            seconds: rs.rollingTimeRemaining.toFixed(1),
+          });
           stationProgressBar = {
             progress: rs.rollingProgress,
             label: `🔄 ${rs.rollingTimeRemaining.toFixed(1)}s`,
@@ -233,20 +248,26 @@ export class Renderer {
 
           if (matchingRecipe) {
             stationText = isTargeted
-              ? `🍱 ${matchingRecipe.name} rollen (Akt1)`
-              : `[ ${itemIcons} ] ✨ Bereit zum Rollen`;
+              ? t("stations.rollRecipe", {
+                  recipe: t(`recipes.${matchingRecipe.id}`),
+                })
+              : t("stations.readyToRoll", { icons: itemIcons });
           } else if (hasPlate) {
             stationText = isTargeted
-              ? `🍽️ Teller nehmen (Akt1)`
+              ? t("stations.takePlate")
               : `[ ${itemIcons} ]`;
           } else if (isFull) {
             stationText = isTargeted
-              ? `⚠️ Voll (${rs.items.length}/${maxCap}) [ ${itemIcons} ] Freiräumen (Akt1)`
-              : `⚠️ Voll [ ${itemIcons} ]`;
+              ? t("stations.fullClear", {
+                  count: rs.items.length,
+                  max: maxCap,
+                  icons: itemIcons,
+                })
+              : t("stations.full", { icons: itemIcons });
           } else {
             stationText = isTargeted
-              ? `⚠️ Blockiert / Falsch [ ${itemIcons} ] Freiräumen (Akt1)`
-              : `[ ${itemIcons} ] ⚠️ Nicht rollbar`;
+              ? t("stations.blockedClear", { icons: itemIcons })
+              : t("stations.cannotRoll", { icons: itemIcons });
           }
         }
       } else if (
@@ -261,7 +282,11 @@ export class Renderer {
             .map((item) => getItemDisplay(item).emoji)
             .join(" ");
           stationText = isTargeted
-            ? `[ ${itemIcons} ] (${counterItems.length}/${maxCap}) Nehmen (Akt1)`
+            ? t("stations.takeCounter", {
+                icons: itemIcons,
+                count: counterItems.length,
+                max: maxCap,
+              })
             : `[ ${itemIcons} ] (${counterItems.length}/${maxCap})`;
         }
       } else if (obj.id === "station-fridge") {
@@ -274,21 +299,35 @@ export class Renderer {
           );
           const comp = fridge?.compartments?.[targetedIng];
           const ingMeta = INGREDIENT_METADATA[targetedIng];
+          const ingredient = t(`ingredients.${targetedIng}`);
 
           if (comp) {
             const stockDots =
               "●".repeat(comp.stock) +
               "○".repeat(Math.max(0, comp.maxStock - comp.stock));
             if (comp.stock > 0) {
-              stationText = `${ingMeta.emoji} ${ingMeta.label} [${stockDots}] (${comp.stock}/${comp.maxStock}) (Akt1)`;
+              stationText = t("stations.takeIngredient", {
+                emoji: ingMeta.emoji,
+                ingredient,
+                dots: stockDots,
+                count: comp.stock,
+                max: comp.maxStock,
+              });
             } else {
-              stationText = `${ingMeta.emoji} ${ingMeta.label} leer ⏳ ${comp.refillTimeRemaining.toFixed(1)}s`;
+              stationText = t("stations.ingredientEmpty", {
+                emoji: ingMeta.emoji,
+                ingredient,
+                seconds: comp.refillTimeRemaining.toFixed(1),
+              });
             }
 
             if (comp.stock < comp.maxStock && comp.refillTimeRemaining > 0) {
               stationProgressBar = {
                 progress: comp.refillProgress,
-                label: `⏳ ${ingMeta.label} ${comp.refillTimeRemaining.toFixed(1)}s`,
+                label: t("stations.refillingIngredient", {
+                  ingredient,
+                  seconds: comp.refillTimeRemaining.toFixed(1),
+                }),
                 fillColor: "#34d399",
                 bgColor: "#27272a",
                 borderColor: "rgba(255, 255, 255, 0.4)",
@@ -298,7 +337,7 @@ export class Renderer {
               };
             }
           } else {
-            stationText = `${ingMeta.emoji} ${ingMeta.label}`;
+            stationText = `${ingMeta.emoji} ${ingredient}`;
           }
         } else {
           // Check if any compartment is empty or refilling
@@ -310,7 +349,9 @@ export class Renderer {
           if (refillingComp && refillingComp.stock === 0) {
             stationProgressBar = {
               progress: refillingComp.refillProgress,
-              label: `⏳ Nachfüllen ${refillingComp.refillTimeRemaining.toFixed(1)}s`,
+              label: t("stations.refilling", {
+                seconds: refillingComp.refillTimeRemaining.toFixed(1),
+              }),
               fillColor: "#34d399",
               bgColor: "#27272a",
               borderColor: "rgba(255, 255, 255, 0.4)",
@@ -324,14 +365,14 @@ export class Renderer {
         if (isTargeted) {
           const firstTargetPlayer = targetingPlayers[0];
           if (firstTargetPlayer.carriedItem?.type === "plate") {
-            stationText = "🍽️ Teller abgeben (Akt1/2)";
+            stationText = t("stations.deliver");
           } else if (firstTargetPlayer.carriedItem?.type === "ingredient") {
-            stationText = "❌ Nur fertige Teller!";
+            stationText = t("stations.platesOnly");
           } else {
-            stationText = "🍽️ Ausgabe";
+            stationText = t("stations.deliveryReady");
           }
         } else {
-          stationText = "🍽️ Ausgabe";
+          stationText = t("stations.deliveryReady");
         }
       }
 
@@ -523,6 +564,7 @@ export class Renderer {
     w: number,
     h: number,
   ): void {
+    const t = i18n.t.bind(i18n);
     if (state.phase === "loading") {
       ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
       ctx.fillRect(0, 0, w, h);
@@ -530,7 +572,7 @@ export class Renderer {
       ctx.fillStyle = "#f3f4f6";
       ctx.font = "600 24px system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("Lade Sushi Order Disorder...", w / 2, h / 2);
+      ctx.fillText(t("loading"), w / 2, h / 2);
     } else if (state.phase === "error") {
       ctx.fillStyle = "rgba(180, 20, 20, 0.3)";
       ctx.fillRect(0, 0, w, h);
@@ -538,15 +580,11 @@ export class Renderer {
       ctx.fillStyle = "#ef4444";
       ctx.font = "bold 24px system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("Fehler aufgetreten", w / 2, h / 2 - 20);
+      ctx.fillText(t("error.heading"), w / 2, h / 2 - 20);
 
       ctx.fillStyle = "#f3f4f6";
       ctx.font = "16px system-ui, sans-serif";
-      ctx.fillText(
-        state.errorMessage ?? "Unbekannter Fehler",
-        w / 2,
-        h / 2 + 15,
-      );
+      ctx.fillText(state.errorMessage ?? t("error.unknown"), w / 2, h / 2 + 15);
     } else if (state.phase === "title") {
       ctx.fillStyle = "#f3f4f6";
       ctx.font = "bold 36px system-ui, sans-serif";
@@ -555,7 +593,7 @@ export class Renderer {
 
       ctx.fillStyle = "#9ca3af";
       ctx.font = "16px system-ui, sans-serif";
-      ctx.fillText("Küche bereit – Klicke auf Start", w / 2, h / 2);
+      ctx.fillText(t("menu.ready"), w / 2, h / 2);
     } else if (state.phase === "running" || state.phase === "paused") {
       // HUD preview / info in top-left corner
       const joined = state.players.filter((p) => p.joined);
@@ -573,9 +611,16 @@ export class Renderer {
       ctx.fillStyle = "#a7f3d0";
       ctx.font = "13px monospace";
       ctx.textAlign = "left";
-      ctx.fillText(`Status: ${state.phase.toUpperCase()}`, 28, 36);
       ctx.fillText(
-        `Zeit: ${state.simulationTime.toFixed(1)}s | Ticks: ${state.tickCount}`,
+        t("hud.status", { phase: t(`hud.phase.${state.phase}`) }),
+        28,
+        36,
+      );
+      ctx.fillText(
+        t("hud.timeTicks", {
+          time: state.simulationTime.toFixed(1),
+          ticks: state.tickCount,
+        }),
         28,
         52,
       );
@@ -584,7 +629,7 @@ export class Renderer {
         const p = joined[i];
         const itemText = p.carriedItem
           ? `${getItemDisplay(p.carriedItem).emoji} ${getItemDisplay(p.carriedItem).label}`
-          : "leer";
+          : t("hud.empty");
         ctx.fillStyle = p.color;
         ctx.fillText(`P${p.id + 1}: ${itemText}`, 28, 70 + i * 18);
       }

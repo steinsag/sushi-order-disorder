@@ -6,10 +6,10 @@ export type DeliveryFeedbackType = "success" | "late" | "wrong";
 export interface DeliveryFeedback {
   readonly id: string;
   readonly type: DeliveryFeedbackType;
-  readonly message: string;
   readonly scoreDelta: number;
   readonly timeRemaining: number;
-  readonly recipeId?: RecipeId;
+  readonly recipeId: RecipeId;
+  readonly isExpress: boolean;
 }
 
 export interface ScoreState {
@@ -63,9 +63,9 @@ export function advanceScoreState(state: ScoreState, dt: number): ScoreState {
 export function applyDeliveryFeedback(
   state: ScoreState,
   type: DeliveryFeedbackType,
-  message: string,
   scoreDelta: number,
-  recipeId?: RecipeId,
+  recipeId: RecipeId,
+  isExpress: boolean,
   displayDuration: number = SCORING_CONFIG.feedbackDisplayDuration,
 ): ScoreState {
   const nextScore = Math.max(0, state.totalScore + scoreDelta);
@@ -82,10 +82,10 @@ export function applyDeliveryFeedback(
     recentFeedback: {
       id: `feedback-${feedbackIdCounter++}`,
       type,
-      message,
       scoreDelta,
       timeRemaining: displayDuration,
       recipeId,
+      isExpress,
     },
   };
 }

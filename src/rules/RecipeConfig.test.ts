@@ -29,17 +29,17 @@ describe("RecipeConfig", () => {
   });
 
   it("defines all four recipes with their correct ingredients from README.md", () => {
-    expect(RECIPES["cucumber-maki"].name).toBe("Gurken-Maki");
+    expect(RECIPES["cucumber-maki"].name).toBe("Cucumber Maki");
     expect(RECIPES["cucumber-maki"].ingredients).toEqual([
       "nori",
       "rice",
       "cucumber",
     ]);
 
-    expect(RECIPES["salmon-nigiri"].name).toBe("Lachs-Nigiri");
+    expect(RECIPES["salmon-nigiri"].name).toBe("Salmon Nigiri");
     expect(RECIPES["salmon-nigiri"].ingredients).toEqual(["rice", "salmon"]);
 
-    expect(RECIPES["salmon-maki"].name).toBe("Lachs-Maki");
+    expect(RECIPES["salmon-maki"].name).toBe("Salmon Maki");
     expect(RECIPES["salmon-maki"].ingredients).toEqual([
       "nori",
       "rice",
