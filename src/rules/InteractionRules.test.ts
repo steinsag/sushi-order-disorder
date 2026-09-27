@@ -1584,6 +1584,12 @@ describe("InteractionRules", () => {
       let state: WorldState = {
         ...createInitialWorldState(),
         phase: "running",
+        shift: {
+          totalDuration: 120,
+          timeRemaining: 60,
+          progress: 0.5, // Rush phase allows 3 active orders
+          isFinished: false,
+        },
         orderStation: {
           pendingOrder: createPendingOrder("ord-1", "cucumber-maki", 45),
           nextSpawnTimer: 0,

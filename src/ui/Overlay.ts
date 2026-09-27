@@ -2,6 +2,7 @@ import type { WorldState } from "../state/WorldState";
 import type { PlayerIndex } from "../input/PlayerInput";
 import { INGREDIENT_METADATA } from "../rules/IngredientConfig";
 import { getRecipeDefinition } from "../rules/RecipeConfig";
+import { calculateShiftRating } from "../rules/ShiftConfig";
 
 export interface OverlayCallbacks {
   onStart: () => void;
@@ -114,6 +115,54 @@ export class Overlay {
         `;
         break;
 
+      case "completed": {
+        const scoreState = state.scoreState;
+        const rating = calculateShiftRating(scoreState);
+        const totalOrders = scoreState.completedOrders;
+        const onTime = scoreState.onTimeOrders;
+        const late = scoreState.lateOrders;
+        const wrong = scoreState.wrongDeliveries;
+
+        html = `
+          <div class="overlay-card summary-card">
+            <h1 class="summary-title">🏁 Schicht beendet!</h1>
+            <div class="rating-box">
+              <div class="rating-title">${rating.title}</div>
+              <p class="rating-description">${rating.description}</p>
+            </div>
+
+            <div class="summary-stats-grid">
+              <div class="stat-box stat-highlight">
+                <span class="stat-label">🏆 Gesamtpunkte</span>
+                <span class="stat-value">${scoreState.totalScore}</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">✅ Pünktlich geliefert</span>
+                <span class="stat-value">${onTime}</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">⏳ Verspätet geliefert</span>
+                <span class="stat-value">${late}</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">❌ Falsche Lieferungen</span>
+                <span class="stat-value">${wrong}</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-label">📦 Bestellungen gesamt</span>
+                <span class="stat-value">${totalOrders}</span>
+              </div>
+            </div>
+
+            <div class="card-actions">
+              <button id="btn-restart" class="btn btn-primary">Neue Schicht starten</button>
+              <button id="btn-menu" class="btn btn-secondary">Hauptmenü</button>
+            </div>
+          </div>
+        `;
+        break;
+      }
+
       case "running": {
         // 1. Render active orders & recipe cards
         let ordersHtml: string;
@@ -213,16 +262,28 @@ export class Overlay {
             </div>`
           : "";
 
+        const shiftTimeRemaining = state.shift ? state.shift.timeRemaining : 0;
+        const shiftMinutes = Math.floor(shiftTimeRemaining / 60);
+        const shiftSeconds = Math.floor(shiftTimeRemaining % 60);
+        const shiftFormatted = `${shiftMinutes}:${shiftSeconds < 10 ? "0" : ""}${shiftSeconds}`;
+        const isShiftLow = shiftTimeRemaining <= 20;
+
         html = `
           <div class="hud-top-bar">
             <div class="hud-orders-container">
               ${ordersHtml}
             </div>
             <div class="hud-center-container">
-              <div class="hud-score-badge">
-                <span class="score-icon">🏆</span>
-                <span class="score-value">${state.scoreState?.totalScore ?? 0}</span>
-                <span class="score-label">Punkte</span>
+              <div class="hud-badges-group">
+                <div class="hud-shift-badge ${isShiftLow ? "time-low" : ""}">
+                  <span class="timer-icon">⏱️</span>
+                  <span class="shift-timer-value">${shiftFormatted}</span>
+                </div>
+                <div class="hud-score-badge">
+                  <span class="score-icon">🏆</span>
+                  <span class="score-value">${state.scoreState?.totalScore ?? 0}</span>
+                  <span class="score-label">Punkte</span>
+                </div>
               </div>
               ${feedbackHtml}
             </div>
@@ -274,6 +335,13 @@ export class Overlay {
         ?.addEventListener("click", () => this.callbacks.onPauseToggle());
       this.container
         .querySelector("#btn-reset")
+        ?.addEventListener("click", () => this.callbacks.onReset());
+    } else if (phase === "completed") {
+      this.container
+        .querySelector("#btn-restart")
+        ?.addEventListener("click", () => this.callbacks.onStart());
+      this.container
+        .querySelector("#btn-menu")
         ?.addEventListener("click", () => this.callbacks.onReset());
     } else if (phase === "error") {
       this.container

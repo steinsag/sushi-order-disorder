@@ -27,11 +27,17 @@ import {
 } from "./OrderState";
 import { createInitialScoreState, type ScoreState } from "./ScoreState";
 import {
+  advanceShiftState,
+  createInitialShiftState,
+  type ShiftState,
+} from "./ShiftState";
+import {
   advanceStationTimers,
   processPlayerInteractions,
 } from "../rules/InteractionRules";
 
-export type GamePhase = "loading" | "title" | "running" | "paused" | "error";
+export type GamePhase =
+  "loading" | "title" | "running" | "paused" | "completed" | "error";
 
 export interface WorldState {
   phase: GamePhase;
@@ -44,6 +50,7 @@ export interface WorldState {
   orderStation: OrderStationState;
   activeOrders: readonly ActiveOrder[];
   scoreState: ScoreState;
+  shift: ShiftState;
   riceCooker: RiceCookerStationState;
   fridge: FridgeStationState;
   rollStation: RollStationState;
@@ -53,7 +60,9 @@ export interface WorldState {
   errorMessage?: string;
 }
 
-export function createInitialWorldState(): WorldState {
+export function createInitialWorldState(
+  customShiftDuration?: number,
+): WorldState {
   const initialRoll1 = createInitialRollStationState();
   const initialRoll2 = createInitialRollStationState();
   return {
@@ -72,6 +81,7 @@ export function createInitialWorldState(): WorldState {
     orderStation: createInitialOrderStationState(),
     activeOrders: [],
     scoreState: createInitialScoreState(),
+    shift: createInitialShiftState(customShiftDuration),
     riceCooker: createInitialRiceCookerState(),
     fridge: createInitialFridgeState(),
     rollStation: initialRoll1,
@@ -121,8 +131,23 @@ export function updateWorldState(
     return state;
   }
 
+  // Advance shift timer first
+  const updatedShift = advanceShiftState(state.shift, dt);
+  if (updatedShift.isFinished) {
+    return {
+      ...state,
+      shift: updatedShift,
+      phase: "completed",
+    };
+  }
+
+  const runningState: WorldState = {
+    ...state,
+    shift: updatedShift,
+  };
+
   // 1. Advance station timers (e.g. rice cooking progress)
-  let updatedState = advanceStationTimers(state, dt);
+  let updatedState = advanceStationTimers(runningState, dt);
 
   // 2. Update player positions, velocities, and facing directions with obstacles & boundaries
   const updatedPlayers = updatedState.players.map((p, i) => {

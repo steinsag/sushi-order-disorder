@@ -34,6 +34,7 @@ import {
 } from "./OrderRules";
 import { evaluateDelivery } from "./DeliveryRules";
 import { advanceScoreState, applyDeliveryFeedback } from "../state/ScoreState";
+import { getShiftProgression } from "./ShiftConfig";
 
 export const DEFAULT_ITEM_PICKUP_RADIUS = 48; // World pixels
 
@@ -214,10 +215,22 @@ export function advanceStationTimers(
     ? advanceActiveOrders(state.activeOrders, dt)
     : [];
 
-  // 4. Advance order station state (spawning new orders if needed)
+  // 4. Advance order station state (spawning new orders if needed according to shift progression)
+  const shiftProgress = state.shift ? state.shift.progress : 0;
+  const progression = getShiftProgression(shiftProgress);
   const activeCount = activeOrders.filter((o) => o.status === "active").length;
   const orderStation = state.orderStation
-    ? advanceOrderStationState(state.orderStation, activeCount, dt)
+    ? advanceOrderStationState(
+        state.orderStation,
+        activeCount,
+        dt,
+        progression.maxActiveOrders,
+        {
+          availableRecipes: progression.availableRecipes,
+          expressChance: progression.expressChance,
+          patienceMultiplier: progression.orderPatienceMultiplier,
+        },
+      )
     : state.orderStation;
 
   // 5. Advance score feedback timer
@@ -330,7 +343,14 @@ function handleAction1(
 
   // --- Order Station interaction (accept pending order) ---
   if (targetStation?.type === "order" && state.orderStation) {
-    const result = acceptOrderAtCounter(state.orderStation, state.activeOrders);
+    const shiftProgress = state.shift ? state.shift.progress : 0;
+    const progression = getShiftProgression(shiftProgress);
+    const result = acceptOrderAtCounter(
+      state.orderStation,
+      state.activeOrders,
+      progression.maxActiveOrders,
+      progression.orderSpawnDelay,
+    );
     if (result.accepted) {
       return {
         ...state,

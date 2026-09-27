@@ -3,6 +3,7 @@ import {
   createInitialWorldState,
   setPlayerJoined,
   updateWorldState,
+  type WorldState,
 } from "./WorldState";
 import { createNeutralPlayerInput } from "../input/PlayerInput";
 
@@ -104,5 +105,49 @@ describe("WorldState", () => {
     const updated = updateWorldState(state, 0.016);
     expect(updated.players[0].targetStationId).toBe("station-order");
     expect(updated.players[1].targetStationId).toBe("station-rice");
+  });
+
+  it("advances shift timer when running and transitions to completed phase when time expires", () => {
+    let state: WorldState = {
+      ...createInitialWorldState(10), // 10s shift
+      phase: "running",
+    };
+
+    expect(state.shift.timeRemaining).toBe(10);
+    expect(state.shift.isFinished).toBe(false);
+
+    // Advance 4s
+    state = updateWorldState(state, 4.0);
+    expect(state.phase).toBe("running");
+    expect(state.shift.timeRemaining).toBeCloseTo(6.0);
+    expect(state.shift.progress).toBeCloseTo(0.4);
+    expect(state.shift.isFinished).toBe(false);
+
+    // Advance 7s (exceeding remaining 6s)
+    state = updateWorldState(state, 7.0);
+    expect(state.phase).toBe("completed");
+    expect(state.shift.timeRemaining).toBe(0);
+    expect(state.shift.progress).toBe(1.0);
+    expect(state.shift.isFinished).toBe(true);
+
+    // Subsequent updates in completed phase do nothing
+    const frozen = updateWorldState(state, 1.0);
+    expect(frozen.phase).toBe("completed");
+    expect(frozen.simulationTime).toBe(state.simulationTime);
+  });
+
+  it("freezes shift and station timers completely when in paused phase", () => {
+    const state: WorldState = {
+      ...createInitialWorldState(100),
+      phase: "paused",
+      simulationTime: 42,
+      tickCount: 1000,
+    };
+
+    const pausedUpdate = updateWorldState(state, 5.0);
+    expect(pausedUpdate.phase).toBe("paused");
+    expect(pausedUpdate.simulationTime).toBe(42);
+    expect(pausedUpdate.tickCount).toBe(1000);
+    expect(pausedUpdate.shift.timeRemaining).toBe(100);
   });
 });

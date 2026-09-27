@@ -231,4 +231,105 @@ describe("Overlay UI & Recipe Cards", () => {
 
     overlay.destroy();
   });
+
+  it("renders shift countdown timer in HUD top bar during running phase", () => {
+    const root = createMockElement() as unknown as HTMLElement;
+    const callbacks = {
+      onStart: vi.fn(),
+      onPauseToggle: vi.fn(),
+      onReset: vi.fn(),
+      onRetry: vi.fn(),
+    };
+
+    const overlay = new Overlay(root, callbacks);
+    const state: WorldState = {
+      ...createInitialWorldState(),
+      phase: "running",
+      shift: {
+        totalDuration: 120,
+        timeRemaining: 75, // 1:15
+        progress: 0.375,
+        isFinished: false,
+      },
+    };
+
+    overlay.render(state);
+
+    // @ts-expect-error accessing innerHTML on container mock
+    const container = overlay["container"] as MockElement;
+    const html = container.innerHTML;
+
+    expect(html).toContain("hud-shift-badge");
+    expect(html).toContain("1:15");
+
+    overlay.destroy();
+  });
+
+  it("renders pause screen in paused phase with resume and reset actions", () => {
+    const root = createMockElement() as unknown as HTMLElement;
+    const callbacks = {
+      onStart: vi.fn(),
+      onPauseToggle: vi.fn(),
+      onReset: vi.fn(),
+      onRetry: vi.fn(),
+    };
+
+    const overlay = new Overlay(root, callbacks);
+    const state: WorldState = {
+      ...createInitialWorldState(),
+      phase: "paused",
+    };
+
+    overlay.render(state);
+
+    // @ts-expect-error accessing innerHTML on container mock
+    const container = overlay["container"] as MockElement;
+    const html = container.innerHTML;
+
+    expect(html).toContain("pause-card");
+    expect(html).toContain("Spiel Pausiert");
+    expect(html).toContain("btn-resume");
+    expect(html).toContain("btn-reset");
+
+    overlay.destroy();
+  });
+
+  it("renders shift completed summary screen with score breakdown, rating and restart button", () => {
+    const root = createMockElement() as unknown as HTMLElement;
+    const callbacks = {
+      onStart: vi.fn(),
+      onPauseToggle: vi.fn(),
+      onReset: vi.fn(),
+      onRetry: vi.fn(),
+    };
+
+    const overlay = new Overlay(root, callbacks);
+    const state: WorldState = {
+      ...createInitialWorldState(),
+      phase: "completed",
+      scoreState: {
+        totalScore: 320,
+        completedOrders: 3,
+        onTimeOrders: 3,
+        lateOrders: 0,
+        wrongDeliveries: 0,
+        recentFeedback: null,
+      },
+    };
+
+    overlay.render(state);
+
+    // @ts-expect-error accessing innerHTML on container mock
+    const container = overlay["container"] as MockElement;
+    const html = container.innerHTML;
+
+    expect(html).toContain("summary-card");
+    expect(html).toContain("Schicht beendet");
+    expect(html).toContain("Meisterköche");
+    expect(html).toContain("320");
+    expect(html).toContain("btn-restart");
+    expect(html).toContain("btn-menu");
+
+    overlay.destroy();
+  });
 });

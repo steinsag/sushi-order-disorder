@@ -104,14 +104,19 @@ export class Game {
   }
 
   public startMatch(): void {
-    // Ensure at least 1 player is joined before starting
-    const hasJoinedPlayer = this.state.players.some((p) => p.joined);
-    if (!hasJoinedPlayer) {
-      this.state = setPlayerJoined(this.state, 0, true);
-    }
+    // Preserve joined player states across rounds
+    const joinedStates = this.state.players.map((p) => p.joined);
+    const hasJoined = joinedStates.some(Boolean);
+
+    const freshState = createInitialWorldState();
+    const players = freshState.players.map((p, i) => ({
+      ...p,
+      joined: hasJoined ? (joinedStates[i] ?? false) : i < 2,
+    })) as typeof freshState.players;
 
     this.state = {
-      ...this.state,
+      ...freshState,
+      players,
       phase: "running",
     };
     this.inputSystem.reset();
@@ -154,8 +159,10 @@ export class Game {
       const { inputs, pausePressed } = this.inputSystem.poll();
 
       if (pausePressed) {
-        this.togglePause();
-        return;
+        if (this.state.phase === "running" || this.state.phase === "paused") {
+          this.togglePause();
+          return;
+        }
       }
 
       this.state = updateWorldState(this.state, dt, inputs);

@@ -63,15 +63,18 @@ export function createRandomPendingOrder(
   id = generateOrderId(),
   availableRecipes: readonly RecipeId[] = ALL_RECIPE_IDS,
   expressChance = 0.25,
+  patienceMultiplier = 1.0,
   randomFn: () => number = Math.random,
 ): PendingOrder {
   const recipeIndex = Math.floor(randomFn() * availableRecipes.length);
   const recipeId = availableRecipes[recipeIndex] ?? DEFAULT_RECIPE_ID;
   const isExpress = randomFn() < expressChance;
   const recipe = getRecipeDefinition(recipeId);
-  const totalTime = isExpress
-    ? Math.round(recipe.baseDuration * 0.75)
-    : recipe.baseDuration;
+  const baseTime = recipe.baseDuration * patienceMultiplier;
+  const totalTime = Math.max(
+    10,
+    isExpress ? Math.round(baseTime * 0.75) : Math.round(baseTime),
+  );
 
   return {
     id,

@@ -61,7 +61,7 @@ src/
 | G4 | Ausgabe, Timer und Wertung für einen kompletten Auftrag | G3 | erledigt |
 | G5 | Alle vier Rezepte und parallele Bestellungen | G4 | erledigt |
 | G6 | Gemeinsamer Engpass, Aufräumen und Vorratsdynamik | G5 | erledigt |
-| G7 | Schichtverlauf, Pause und Endwertung | G6 | offen |
+| G7 | Schichtverlauf, Pause und Endwertung | G6 | erledigt |
 | Q1 | End-to-End- und Geräteabnahme des MVP | G7 | offen |
 
 ### H0 — Harness und Agent-Arbeitsweise

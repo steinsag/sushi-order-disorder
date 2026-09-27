@@ -149,6 +149,55 @@ describe("Game integration", () => {
     game.destroy();
   });
 
+  it("handles pause freezing, shift completion, and match restart", () => {
+    const container = createMockElement("div") as unknown as HTMLElement;
+    const keyboard = new KeyboardState();
+    const game = new Game(container, {
+      inputOptions: { keyboard },
+      loopOptions: { raf: () => 1, caf: () => {} },
+    });
+
+    // Join P3
+    game.setPlayerJoined(2, true);
+    expect(game.getState().players[2].joined).toBe(true);
+
+    // Start match
+    game.startMatch();
+    expect(game.getState().phase).toBe("running");
+    expect(game.getState().players[2].joined).toBe(true);
+
+    // Pause match
+    game.togglePause();
+    expect(game.getState().phase).toBe("paused");
+
+    const simTimeBefore = game.getState().simulationTime;
+    const shiftTimeBefore = game.getState().shift.timeRemaining;
+
+    // In paused state, update does not advance simulation or shift timer
+    game.update(5.0);
+    expect(game.getState().simulationTime).toBe(simTimeBefore);
+    expect(game.getState().shift.timeRemaining).toBe(shiftTimeBefore);
+
+    // Unpause
+    game.togglePause();
+    expect(game.getState().phase).toBe("running");
+
+    // Advance until shift ends (default 120s)
+    game.update(125);
+    expect(game.getState().phase).toBe("completed");
+    expect(game.getState().shift.isFinished).toBe(true);
+
+    // Restart match from completed state
+    game.startMatch();
+    expect(game.getState().phase).toBe("running");
+    expect(game.getState().shift.isFinished).toBe(false);
+    expect(game.getState().shift.timeRemaining).toBe(120);
+    expect(game.getState().scoreState.totalScore).toBe(0);
+    expect(game.getState().players[2].joined).toBe(true); // Preserved joined player
+
+    game.destroy();
+  });
+
   it("allows joining and leaving player slots", () => {
     const container = createMockElement("div") as unknown as HTMLElement;
     const game = new Game(container, {

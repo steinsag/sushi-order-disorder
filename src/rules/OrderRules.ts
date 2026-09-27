@@ -22,6 +22,7 @@ export interface OrderAdvanceResult {
 export interface OrderSpawnOptions {
   readonly availableRecipes?: readonly RecipeId[];
   readonly expressChance?: number;
+  readonly patienceMultiplier?: number;
   readonly randomFn?: () => number;
 }
 
@@ -69,12 +70,14 @@ export function advanceOrderStationState(
     // Spawn new pending order from available recipes
     const availableRecipes = options?.availableRecipes ?? ALL_RECIPE_IDS;
     const expressChance = options?.expressChance ?? DEFAULT_EXPRESS_CHANCE;
+    const patienceMultiplier = options?.patienceMultiplier ?? 1.0;
     const randomFn = options?.randomFn ?? Math.random;
 
     const newOrder = createRandomPendingOrder(
       generateOrderId(),
       availableRecipes,
       expressChance,
+      patienceMultiplier,
       randomFn,
     );
 
@@ -95,6 +98,7 @@ export function acceptOrderAtCounter(
   stationState: OrderStationState,
   activeOrders: readonly ActiveOrder[],
   maxActiveOrders: number = DEFAULT_MAX_ACTIVE_ORDERS,
+  spawnDelay: number = DEFAULT_ORDER_SPAWN_DELAY,
 ): {
   orderStation: OrderStationState;
   activeOrders: readonly ActiveOrder[];
@@ -125,7 +129,7 @@ export function acceptOrderAtCounter(
   return {
     orderStation: {
       pendingOrder: null,
-      nextSpawnTimer: DEFAULT_ORDER_SPAWN_DELAY,
+      nextSpawnTimer: spawnDelay,
       totalOrdersSpawned: stationState.totalOrdersSpawned,
     },
     activeOrders: [...activeOrders, newActiveOrder],
