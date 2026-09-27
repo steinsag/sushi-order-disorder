@@ -199,8 +199,16 @@ export class Renderer {
             ? "🍚 Kochen starten (Akt1)"
             : "🍚 Reiskocher leer (Akt1)";
         }
-      } else if (obj.id === "station-roll" && state.rollStation) {
-        const rs = state.rollStation;
+      } else if (
+        (obj.id.startsWith("station-roll") ||
+          obj.spriteId === "station_roll") &&
+        (state.rollStations?.[obj.id] || state.rollStation)
+      ) {
+        const rs =
+          state.rollStations?.[obj.id] ??
+          (obj.id === "station-roll" || obj.id === "station-roll-1"
+            ? state.rollStation
+            : state.rollStation);
         if (rs.state === "rolling" && rs.rollingRecipeId) {
           const recipe = getRecipeDefinition(rs.rollingRecipeId);
           stationText = `🔄 Rollt ${recipe.name}... (${rs.rollingTimeRemaining.toFixed(1)}s)`;

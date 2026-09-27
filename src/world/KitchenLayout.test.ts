@@ -18,7 +18,8 @@ describe("Kitchen Layout & Reachability", () => {
     expect(stationTypes).toContain("order"); // Bestellannahme
     expect(stationTypes).toContain("rice"); // Reiskocher
     expect(stationTypes).toContain("fridge"); // Kühlschrank
-    expect(stationTypes).toContain("roll"); // Rollstation
+    const rollStations = DEFAULT_STATIONS.filter((s) => s.type === "roll");
+    expect(rollStations.length).toBeGreaterThanOrEqual(2);
     expect(stationTypes).toContain("delivery"); // Ausgabe
   });
 
@@ -90,8 +91,12 @@ describe("Kitchen Layout & Reachability", () => {
         approach: { x: 600, y: 160 },
         facing: { x: 0, y: -1 },
       },
-      "station-roll": {
+      "station-roll-1": {
         approach: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+      },
+      "station-roll-2": {
+        approach: { x: 570, y: 390 },
         facing: { x: 0, y: 1 },
       },
       "station-delivery": {

@@ -1667,5 +1667,180 @@ describe("InteractionRules", () => {
       expect(state.activeOrders).toHaveLength(2);
       expect(state.scoreState.completedOrders).toBe(1);
     });
+
+    it("allows two players to roll two different recipes simultaneously on two separate roll stations", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      // Set up Player 1 at Roll Station 1 (x: 380, y: 390) and Player 2 at Roll Station 2 (x: 570, y: 390)
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll-1",
+      };
+      state.players[1] = {
+        ...state.players[1],
+        pos: { x: 570, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll-2",
+      };
+
+      // 1. Player 1 loads ingredients for salmon-nigiri (rice + salmon) on station-roll-1
+      state.players[0].carriedItem = createIngredientItem("rice");
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      state.players[0].carriedItem = createIngredientItem("salmon");
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      // 2. Player 2 loads ingredients for cucumber-maki (nori + rice + cucumber) on station-roll-2
+      state.players[1].carriedItem = createIngredientItem("nori");
+      state = updateWorldState(state, 1 / 60, [
+        createNeutralPlayerInput(),
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      state.players[1].carriedItem = createIngredientItem("rice");
+      state = updateWorldState(state, 1 / 60, [
+        createNeutralPlayerInput(),
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      state.players[1].carriedItem = createIngredientItem("cucumber");
+      state = updateWorldState(state, 1 / 60, [
+        createNeutralPlayerInput(),
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      // Verify stations have the items
+      expect(state.rollStations["station-roll-1"].items).toHaveLength(2);
+      expect(state.rollStations["station-roll-2"].items).toHaveLength(3);
+
+      // 3. Both players trigger rolling on their respective roll stations simultaneously
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      expect(state.rollStations["station-roll-1"].state).toBe("rolling");
+      expect(state.rollStations["station-roll-1"].rollingRecipeId).toBe(
+        "salmon-nigiri",
+      );
+      expect(state.rollStations["station-roll-2"].state).toBe("rolling");
+      expect(state.rollStations["station-roll-2"].rollingRecipeId).toBe(
+        "cucumber-maki",
+      );
+
+      // 4. Advance time until rolling finishes
+      for (let i = 0; i < 130; i++) {
+        state = updateWorldState(state, 1 / 60);
+      }
+
+      expect(state.rollStations["station-roll-1"].state).toBe("idle");
+      expect(state.rollStations["station-roll-2"].state).toBe("idle");
+      expect(state.rollStations["station-roll-1"].items).toHaveLength(1);
+      expect(state.rollStations["station-roll-2"].items).toHaveLength(1);
+
+      const plate1 = state.rollStations["station-roll-1"].items[0];
+      const plate2 = state.rollStations["station-roll-2"].items[0];
+      expect(plate1.type).toBe("plate");
+      expect(plate2.type).toBe("plate");
+      if (plate1.type === "plate" && plate2.type === "plate") {
+        expect(plate1.recipeId).toBe("salmon-nigiri");
+        expect(plate2.recipeId).toBe("cucumber-maki");
+      }
+
+      // 5. Player 1 takes plate 1, Player 2 takes plate 2
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      expect(state.players[0].carriedItem?.type).toBe("plate");
+      expect(state.players[1].carriedItem?.type).toBe("plate");
+      if (
+        state.players[0].carriedItem?.type === "plate" &&
+        state.players[1].carriedItem?.type === "plate"
+      ) {
+        expect(state.players[0].carriedItem.recipeId).toBe("salmon-nigiri");
+        expect(state.players[1].carriedItem.recipeId).toBe("cucumber-maki");
+      }
+      expect(state.rollStations["station-roll-1"].items).toHaveLength(0);
+      expect(state.rollStations["station-roll-2"].items).toHaveLength(0);
+    });
+
+    it("cancelling rolling on one roll station does not affect the other active roll station", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      state.rollStations["station-roll-1"] = {
+        ...state.rollStations["station-roll-1"],
+        state: "rolling",
+        rollingRecipeId: "salmon-nigiri",
+        rollingTimeRemaining: 1.5,
+        totalRollingTime: 2.0,
+        rollingProgress: 0.25,
+        items: [],
+      };
+      state.rollStations["station-roll-2"] = {
+        ...state.rollStations["station-roll-2"],
+        state: "rolling",
+        rollingRecipeId: "cucumber-maki",
+        rollingTimeRemaining: 1.5,
+        totalRollingTime: 2.0,
+        rollingProgress: 0.25,
+        items: [],
+      };
+
+      // Player 1 at station-roll-1 presses action2 (cancel)
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll-1",
+        carriedItem: null,
+      };
+
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action2: true, action2Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      // station-roll-1 is cancelled and ingredients restored
+      expect(state.rollStations["station-roll-1"].state).toBe("idle");
+      expect(state.rollStations["station-roll-1"].items).toHaveLength(2);
+
+      // station-roll-2 is still actively rolling
+      expect(state.rollStations["station-roll-2"].state).toBe("rolling");
+      expect(state.rollStations["station-roll-2"].rollingRecipeId).toBe(
+        "cucumber-maki",
+      );
+    });
   });
 });

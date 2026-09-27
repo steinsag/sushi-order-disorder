@@ -47,12 +47,15 @@ export interface WorldState {
   riceCooker: RiceCookerStationState;
   fridge: FridgeStationState;
   rollStation: RollStationState;
+  rollStations: Record<string, RollStationState>;
   counters: Record<string, CounterStationState>;
   droppedItems: readonly DroppedItem[];
   errorMessage?: string;
 }
 
 export function createInitialWorldState(): WorldState {
+  const initialRoll1 = createInitialRollStationState();
+  const initialRoll2 = createInitialRollStationState();
   return {
     phase: "title",
     simulationTime: 0,
@@ -71,7 +74,12 @@ export function createInitialWorldState(): WorldState {
     scoreState: createInitialScoreState(),
     riceCooker: createInitialRiceCookerState(),
     fridge: createInitialFridgeState(),
-    rollStation: createInitialRollStationState(),
+    rollStation: initialRoll1,
+    rollStations: {
+      "station-roll-1": initialRoll1,
+      "station-roll-2": initialRoll2,
+      "station-roll": initialRoll1,
+    },
     counters: {
       "counter-island": createInitialCounterState(),
     },

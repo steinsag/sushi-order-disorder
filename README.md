@@ -27,7 +27,7 @@ Für jede korrekt und pünktlich erledigte Bestellung erhält das Team Punkte. V
 
 ## Stationen
 
-Die Küche besteht bewusst aus nur **fünf zentralen Stationen**. Dadurch bleibt das Spiel leicht verständlich, erzeugt aber trotzdem kooperatives Chaos.
+Die Küche besteht aus **fünf zentralen Stationstypen** (mit zwei Rollstationen für paralleles Arbeiten). Dadurch bleibt das Spiel leicht verständlich, erzeugt aber trotzdem kooperatives Chaos.
 
 ### 1. Bestellannahme
 
@@ -86,7 +86,7 @@ Beispiel: Für eine **Gurken-Maki** müssen an der Rollstation liegen:
 
 Nach einer kurzen Roll-Animation entsteht ein fertiger Teller mit Sushi.
 
-Die Rollstation ist absichtlich ein gemeinsamer Engpass: Mehrere Spieler können Zutaten bringen, müssen sich aber abstimmen, welche Bestellung gerade vorbereitet wird. Falsche oder liegengebliebene Zutaten blockieren die Fläche, bis sie weggeräumt werden.
+Um mehrere Rezepte gleichzeitig zubereiten zu können, stehen in der Küche **zwei Rollstationen** zur Verfügung. Jede Rollstation ist ein eigener Arbeitsplatz und Engpass: Mehrere Spieler können parallel an unterschiedlichen Rollstationen Zutaten kombinieren und Rezepte fertigen, müssen sich aber abstimmen, welche Bestellung gerade vorbereitet wird. Falsche oder liegengebliebene Zutaten blockieren die jeweilige Fläche, bis sie weggeräumt werden.
 
 ---
 
@@ -100,7 +100,7 @@ Ein Spieler bringt den fertigen Teller von der Rollstation zur Ausgabe. Dort wir
 - **korrekt, aber verspätet:** weniger Punkte,
 - **falsches Gericht:** Bestellung bleibt offen oder führt zu einer kleinen Punktestrafe.
 
-Die Ausgabe sollte räumlich nicht direkt neben der Rollstation liegen, damit Spieler zwischen Zubereitung und Bedienung pendeln und sich gegenseitig den Weg freimachen müssen.
+Die Ausgabe sollte räumlich nicht direkt neben den Rollstationen liegen, damit Spieler zwischen Zubereitung und Bedienung pendeln und sich gegenseitig den Weg freimachen müssen.
 
 ---
 
@@ -162,11 +162,11 @@ Die erste spielbare Version sollte bewusst klein bleiben:
 
 - **2–4 lokale Spieler**
 - gemeinsame Top-down-Kamera
-- fünf Stationen:
+- fünf Stationstypen:
   - Bestellannahme
   - Reiskocher
   - Kühlschrank
-  - Rollstation
+  - Rollstationen (2 Rollstationen für paralleles Zubereiten)
   - Ausgabe
 - Zutaten:
   - Reis

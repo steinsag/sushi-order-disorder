@@ -8,6 +8,10 @@ import {
   type DroppedItem,
 } from "../state/ItemState";
 import type { WorldState } from "../state/WorldState";
+import {
+  createInitialRollStationState,
+  type RollStationState,
+} from "../state/StationState";
 import type { StationDefinition } from "./StationConfig";
 import {
   DEFAULT_ORDER_SPAWN_DELAY,
@@ -55,6 +59,59 @@ export function findClosestDroppedItem(
   return closest;
 }
 
+export function getRollStationState(
+  state: WorldState,
+  stationId?: string,
+): RollStationState {
+  if (stationId && state.rollStations && state.rollStations[stationId]) {
+    return state.rollStations[stationId];
+  }
+  if (stationId === "station-roll-1" || stationId === "station-roll") {
+    return (
+      state.rollStation ??
+      state.rollStations?.["station-roll-1"] ??
+      state.rollStations?.["station-roll"] ??
+      createInitialRollStationState()
+    );
+  }
+  if (stationId && state.rollStations?.[stationId]) {
+    return state.rollStations[stationId];
+  }
+  return state.rollStation ?? createInitialRollStationState();
+}
+
+export function updateRollStationInWorld(
+  state: WorldState,
+  stationId: string,
+  newRollState: RollStationState,
+): WorldState {
+  const currentRollStations = state.rollStations ?? {
+    "station-roll-1": state.rollStation ?? createInitialRollStationState(),
+    "station-roll": state.rollStation ?? createInitialRollStationState(),
+  };
+  const rollStations: Record<string, RollStationState> = {
+    ...currentRollStations,
+    [stationId]: newRollState,
+  };
+  if (stationId === "station-roll-1") {
+    rollStations["station-roll"] = newRollState;
+  } else if (stationId === "station-roll") {
+    rollStations["station-roll-1"] = newRollState;
+  }
+
+  const isPrimary =
+    stationId === "station-roll-1" ||
+    stationId === "station-roll" ||
+    !state.rollStations ||
+    Object.keys(state.rollStations)[0] === stationId;
+
+  return {
+    ...state,
+    rollStations,
+    rollStation: isPrimary ? newRollState : (state.rollStation ?? newRollState),
+  };
+}
+
 export function advanceStationTimers(
   state: WorldState,
   dt: number,
@@ -84,33 +141,65 @@ export function advanceStationTimers(
     }
   }
 
-  // 2. Advance roll station
-  let rollStation = state.rollStation;
-  if (rollStation.state === "rolling") {
-    const newRollTime = Math.max(0, rollStation.rollingTimeRemaining - dt);
-    const total = rollStation.totalRollingTime;
-    const progress =
-      total > 0 ? Math.min(1, Math.max(0, 1 - newRollTime / total)) : 1;
+  // 2. Advance roll station(s)
+  const currentRollStations: Record<string, RollStationState> = {
+    ...(state.rollStations ?? {}),
+  };
+  if (
+    state.rollStation &&
+    !currentRollStations["station-roll-1"] &&
+    !currentRollStations["station-roll"]
+  ) {
+    currentRollStations["station-roll-1"] = state.rollStation;
+    currentRollStations["station-roll"] = state.rollStation;
+  }
 
-    if (newRollTime <= 0) {
-      const recipeId = rollStation.rollingRecipeId ?? DEFAULT_RECIPE_ID;
-      const plate = createPlateItem(recipeId);
-      rollStation = {
-        ...rollStation,
-        state: "idle",
-        items: [plate],
-        rollingTimeRemaining: 0,
-        rollingProgress: 0,
-        rollingRecipeId: null,
-      };
+  const updatedRollStations: Record<string, RollStationState> = {};
+  for (const [id, rs] of Object.entries(currentRollStations)) {
+    let effectiveRs = rs;
+    if (
+      (id === "station-roll-1" || id === "station-roll") &&
+      state.rollStation &&
+      state.rollStation !== rs &&
+      (state.rollStation.state === "rolling" ||
+        state.rollStation.items.length > 0)
+    ) {
+      effectiveRs = state.rollStation;
+    }
+
+    if (effectiveRs.state === "rolling") {
+      const newRollTime = Math.max(0, effectiveRs.rollingTimeRemaining - dt);
+      const total = effectiveRs.totalRollingTime;
+      const progress =
+        total > 0 ? Math.min(1, Math.max(0, 1 - newRollTime / total)) : 1;
+
+      if (newRollTime <= 0) {
+        const recipeId = effectiveRs.rollingRecipeId ?? DEFAULT_RECIPE_ID;
+        const plate = createPlateItem(recipeId);
+        updatedRollStations[id] = {
+          ...effectiveRs,
+          state: "idle",
+          items: [plate],
+          rollingTimeRemaining: 0,
+          rollingProgress: 0,
+          rollingRecipeId: null,
+        };
+      } else {
+        updatedRollStations[id] = {
+          ...effectiveRs,
+          rollingTimeRemaining: newRollTime,
+          rollingProgress: progress,
+        };
+      }
     } else {
-      rollStation = {
-        ...rollStation,
-        rollingTimeRemaining: newRollTime,
-        rollingProgress: progress,
-      };
+      updatedRollStations[id] = effectiveRs;
     }
   }
+
+  const updatedPrimary =
+    updatedRollStations["station-roll-1"] ??
+    updatedRollStations["station-roll"] ??
+    state.rollStation;
 
   // 3. Advance active orders countdown
   const activeOrders = state.activeOrders
@@ -131,7 +220,8 @@ export function advanceStationTimers(
   return {
     ...state,
     riceCooker,
-    rollStation,
+    rollStation: updatedPrimary,
+    rollStations: updatedRollStations,
     activeOrders,
     orderStation,
     scoreState,
@@ -189,21 +279,29 @@ function handleAction1(
   if (carried) {
     // --- Player is carrying an item ---
     if (targetStation?.type === "roll") {
+      const stationId = targetStation.id;
+      const currentRollState = getRollStationState(state, stationId);
+
       // If roll station is actively rolling, player cannot place item onto it
-      if (state.rollStation.state === "rolling") {
+      if (currentRollState.state === "rolling") {
         return state;
       }
 
       // Place item onto Roll Station
-      const updatedRollItems = [...state.rollStation.items, carried];
+      const updatedRollItems = [...currentRollState.items, carried];
       const updatedPlayers = [...state.players] as typeof state.players;
       updatedPlayers[slot] = { ...player, carriedItem: null };
 
-      return {
-        ...state,
-        players: updatedPlayers,
-        rollStation: { ...state.rollStation, items: updatedRollItems },
+      const updatedRollState: RollStationState = {
+        ...currentRollState,
+        items: updatedRollItems,
       };
+
+      return updateRollStationInWorld(
+        { ...state, players: updatedPlayers },
+        stationId,
+        updatedRollState,
+      );
     }
 
     if (targetStation?.type === "counter") {
@@ -347,31 +445,32 @@ function handleAction1(
   }
 
   if (targetStation?.type === "roll") {
+    const stationId = targetStation.id;
+    const currentRollState = getRollStationState(state, stationId);
+
     // If roll station is actively rolling, player cannot interact with it
-    if (state.rollStation.state === "rolling") {
+    if (currentRollState.state === "rolling") {
       return state;
     }
 
     // Check if current ingredients on roll station form a valid recipe
-    const matchingRecipe = findMatchingRecipe(state.rollStation.items);
+    const matchingRecipe = findMatchingRecipe(currentRollState.items);
     if (matchingRecipe) {
       // Start rolling recipe
-      return {
-        ...state,
-        rollStation: {
-          ...state.rollStation,
-          state: "rolling",
-          rollingRecipeId: matchingRecipe.id,
-          rollingTimeRemaining: state.rollStation.totalRollingTime,
-          rollingProgress: 0,
-          items: [],
-        },
+      const updatedRollState: RollStationState = {
+        ...currentRollState,
+        state: "rolling",
+        rollingRecipeId: matchingRecipe.id,
+        rollingTimeRemaining: currentRollState.totalRollingTime,
+        rollingProgress: 0,
+        items: [],
       };
+      return updateRollStationInWorld(state, stationId, updatedRollState);
     }
 
     // If no matching recipe (e.g. partial ingredients, invalid combination, or finished plate), pick up top item
-    if (state.rollStation.items.length > 0) {
-      const remainingItems = [...state.rollStation.items];
+    if (currentRollState.items.length > 0) {
+      const remainingItems = [...currentRollState.items];
       const itemToTake = remainingItems.pop()!;
       const updatedPlayers = [...state.players] as typeof state.players;
       updatedPlayers[slot] = {
@@ -379,11 +478,16 @@ function handleAction1(
         carriedItem: itemToTake,
       };
 
-      return {
-        ...state,
-        players: updatedPlayers,
-        rollStation: { ...state.rollStation, items: remainingItems },
+      const updatedRollState: RollStationState = {
+        ...currentRollState,
+        items: remainingItems,
       };
+
+      return updateRollStationInWorld(
+        { ...state, players: updatedPlayers },
+        stationId,
+        updatedRollState,
+      );
     }
   }
 
@@ -497,24 +601,26 @@ function handleAction2(
   }
 
   // If empty-handed and targeting roll station while rolling, cancel rolling
-  if (targetStation?.type === "roll" && state.rollStation.state === "rolling") {
-    const cancelledRecipeId =
-      state.rollStation.rollingRecipeId ?? DEFAULT_RECIPE_ID;
-    const recipe = getRecipeDefinition(cancelledRecipeId);
-    const restoredItems = recipe.ingredients.map((ing) =>
-      createIngredientItem(ing),
-    );
-    return {
-      ...state,
-      rollStation: {
-        ...state.rollStation,
+  if (targetStation?.type === "roll") {
+    const stationId = targetStation.id;
+    const currentRollState = getRollStationState(state, stationId);
+    if (currentRollState.state === "rolling") {
+      const cancelledRecipeId =
+        currentRollState.rollingRecipeId ?? DEFAULT_RECIPE_ID;
+      const recipe = getRecipeDefinition(cancelledRecipeId);
+      const restoredItems = recipe.ingredients.map((ing) =>
+        createIngredientItem(ing),
+      );
+      const updatedRollState: RollStationState = {
+        ...currentRollState,
         state: "idle",
         items: restoredItems,
         rollingRecipeId: null,
         rollingTimeRemaining: 0,
         rollingProgress: 0,
-      },
-    };
+      };
+      return updateRollStationInWorld(state, stationId, updatedRollState);
+    }
   }
 
   return state;

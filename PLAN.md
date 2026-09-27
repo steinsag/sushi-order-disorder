@@ -120,13 +120,13 @@ src/
 
 ### G5 — Rezeptvielfalt und parallele Aufträge
 
-**Liefern:** Lachs-Nigiri, Gurken-Maki, Lachs-Maki und Avocado-Maki mit den Zutaten aus `README.md`. Mehrere Aufträge können gleichzeitig aktiv sein; Teller werden eindeutig einem passenden Auftrag zugewiesen. Express-Priorität als klar erkennbares Auftragsmerkmal vorbereiten oder aktivieren. Keine Rezeptlogik in UI-Texten verdoppeln.
+**Liefern:** Lachs-Nigiri, Gurken-Maki, Lachs-Maki und Avocado-Maki mit den Zutaten aus `README.md`. Mehrere Aufträge können gleichzeitig aktiv sein; Teller werden eindeutig einem passenden Auftrag zugewiesen. Zwei Rollstationen ermöglichen das parallele Fertigen mehrerer Rezepte. Express-Priorität als klar erkennbares Auftragsmerkmal vorbereiten oder aktivieren. Keine Rezeptlogik in UI-Texten verdoppeln.
 
-**Abnahme:** Jedes Rezept lässt sich herstellen und ausgeben; falsche Komponenten bleiben unterscheidbar. Tests prüfen alle Rezeptkombinationen und parallele Aufträge, einschließlich identischer Gerichte mit unterschiedlichen Timern.
+**Abnahme:** Jedes Rezept lässt sich herstellen und ausgeben; falsche Komponenten bleiben unterscheidbar. Mehrere Rollstationen können gleichzeitig unterschiedliche Rezepte zubereiten. Tests prüfen alle Rezeptkombinationen und parallele Aufträge, einschließlich identischer Gerichte mit unterschiedlichen Timern sowie paralleles Rollen an beiden Rollstationen.
 
 ### G6 — Gemeinsame Arbeitsfläche und Vorratsdynamik
 
-**Liefern:** Falsch abgelegte oder liegengebliebene Zutaten blockieren die Rollstation wie in `README.md` beschrieben und können gezielt weggeräumt werden. Kühlschrank-Fächer können begrenzt sein und sich nach einer kurzen, sichtbaren Zeit auffüllen; die genaue Balance wird konfiguriert. Bei konkurrierenden Interaktionen bleibt der Weltzustand konsistent.
+**Liefern:** Falsch abgelegte oder liegengebliebene Zutaten blockieren die Rollstationen wie in `README.md` beschrieben und können gezielt weggeräumt werden. Kühlschrank-Fächer können begrenzt sein und sich nach einer kurzen, sichtbaren Zeit auffüllen; die genaue Balance wird konfiguriert. Bei konkurrierenden Interaktionen bleibt der Weltzustand konsistent.
 
 **Abnahme:** Blockierte Fläche lässt sich ohne Neustart freiräumen. Tests prüfen Kapazität, Auffüllen, Abbrechen und simultane Aktionen; manueller Koop-Test bestätigt verständliche Rückmeldung.
 
