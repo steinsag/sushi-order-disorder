@@ -1843,4 +1843,408 @@ describe("InteractionRules", () => {
       );
     });
   });
+
+  describe("G6: Fridge stock dynamics and replenishment", () => {
+    it("depletes compartment stock and rejects taking when empty", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      // Fridge starts with 3 portions of salmon
+      expect(state.fridge.compartments.salmon.stock).toBe(3);
+
+      // Position P0 at salmon slot (x=590, y=160)
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 590, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-fridge",
+        carriedItem: null,
+      };
+
+      // 1. Take portion 1
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.fridge.compartments.salmon.stock).toBe(2);
+      expect((state.players[0].carriedItem as IngredientItem)?.ingredient).toBe(
+        "salmon",
+      );
+
+      // Empty P0's hand
+      state.players[0].carriedItem = null;
+
+      // 2. Take portion 2
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.fridge.compartments.salmon.stock).toBe(1);
+
+      // Empty P0's hand
+      state.players[0].carriedItem = null;
+
+      // 3. Take portion 3 (last one)
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.fridge.compartments.salmon.stock).toBe(0);
+
+      // Empty P0's hand
+      state.players[0].carriedItem = null;
+
+      // 4. Try taking portion 4 when stock is 0
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      // Should be rejected: stock remains 0, player hand remains empty
+      expect(state.fridge.compartments.salmon.stock).toBe(0);
+      expect(state.players[0].carriedItem).toBeNull();
+    });
+
+    it("refills depleted stock periodically over time", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      // Set salmon stock to 0 and start refill timer
+      state.fridge.compartments.salmon = {
+        stock: 0,
+        maxStock: 3,
+        refillTimeRemaining: 4.0,
+        totalRefillTime: 4.0,
+        refillProgress: 0,
+      };
+
+      // Advance by 2.0s (halfway)
+      state = advanceStationTimers(state, 2.0);
+      expect(state.fridge.compartments.salmon.stock).toBe(0);
+      expect(state.fridge.compartments.salmon.refillTimeRemaining).toBeCloseTo(
+        2.0,
+      );
+      expect(state.fridge.compartments.salmon.refillProgress).toBeCloseTo(0.5);
+
+      // Advance by another 2.0s -> stock refills to 1 portion and continues refilling to 2
+      state = advanceStationTimers(state, 2.0);
+      expect(state.fridge.compartments.salmon.stock).toBe(1);
+      expect(state.fridge.compartments.salmon.refillTimeRemaining).toBeCloseTo(
+        4.0,
+      );
+
+      // Advance 4.0s -> stock refills to 2
+      state = advanceStationTimers(state, 4.0);
+      expect(state.fridge.compartments.salmon.stock).toBe(2);
+
+      // Advance 4.0s -> stock refills to 3 (maxStock reached, timer stops)
+      state = advanceStationTimers(state, 4.0);
+      expect(state.fridge.compartments.salmon.stock).toBe(3);
+      expect(state.fridge.compartments.salmon.refillTimeRemaining).toBe(0);
+      expect(state.fridge.compartments.salmon.refillProgress).toBe(0);
+    });
+
+    it("allows returning matching ingredient to compartment to restore stock", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      state.fridge.compartments.salmon.stock = 1;
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 590, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-fridge",
+        carriedItem: createIngredientItem("salmon"),
+      };
+
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      // Stock increased from 1 to 2, player's hand is now empty
+      expect(state.fridge.compartments.salmon.stock).toBe(2);
+      expect(state.players[0].carriedItem).toBeNull();
+    });
+
+    it("swaps ingredients with fridge, updating both source and target stocks", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      state.fridge.compartments.salmon.stock = 1; // can receive salmon back
+      state.fridge.compartments.avocado.stock = 2; // can dispense avocado
+
+      // P0 holding salmon stands at avocado slot (x=640)
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 640, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-fridge",
+        carriedItem: createIngredientItem("salmon"),
+      };
+
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      // Salmon deposited (+1 -> 2), Avocado taken (-1 -> 1), P0 holds avocado
+      expect(state.fridge.compartments.salmon.stock).toBe(2);
+      expect(state.fridge.compartments.avocado.stock).toBe(1);
+      expect((state.players[0].carriedItem as IngredientItem)?.ingredient).toBe(
+        "avocado",
+      );
+    });
+  });
+
+  describe("G6: Roll station blocking, capacity and clearing", () => {
+    it("enforces capacity limit on roll station and rejects overflow", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      // Station already has 4 items (max capacity)
+      state.rollStations["station-roll-1"].items = [
+        createIngredientItem("nori"),
+        createIngredientItem("rice"),
+        createIngredientItem("cucumber"),
+        createIngredientItem("avocado"),
+      ];
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll-1",
+        carriedItem: createIngredientItem("salmon"),
+      };
+
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      // Placement rejected: station remains at 4 items, player still carries salmon
+      expect(state.rollStations["station-roll-1"].items).toHaveLength(4);
+      expect((state.players[0].carriedItem as IngredientItem)?.ingredient).toBe(
+        "salmon",
+      );
+    });
+
+    it("allows clearing a blocked roll station item-by-item without restarting", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      // Blocked station with 2 wrong nori and 1 cucumber (not a valid recipe)
+      state.rollStations["station-roll-1"].items = [
+        createIngredientItem("nori"),
+        createIngredientItem("nori"),
+        createIngredientItem("cucumber"),
+      ];
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll-1",
+        carriedItem: null,
+      };
+
+      // 1. First interaction takes top item (cucumber)
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.rollStations["station-roll-1"].items).toHaveLength(2);
+      expect((state.players[0].carriedItem as IngredientItem)?.ingredient).toBe(
+        "cucumber",
+      );
+
+      // Player drops cucumber onto floor with action2
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action2: true, action2Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.players[0].carriedItem).toBeNull();
+      expect(state.droppedItems).toHaveLength(1);
+
+      // 2. Second interaction takes next item (duplicate nori)
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.rollStations["station-roll-1"].items).toHaveLength(1);
+      expect((state.players[0].carriedItem as IngredientItem)?.ingredient).toBe(
+        "nori",
+      );
+    });
+
+    it("enforces capacity limit on island counter and allows clearing items", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      state.counters["counter-island"].items = [
+        createIngredientItem("nori"),
+        createIngredientItem("rice"),
+        createIngredientItem("salmon"),
+        createIngredientItem("cucumber"),
+      ];
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 480, y: 250 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "counter-island",
+        carriedItem: createIngredientItem("avocado"),
+      };
+
+      // Overflow attempt (5th item) rejected
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.counters["counter-island"].items).toHaveLength(4);
+      expect(state.players[0].carriedItem).not.toBeNull();
+
+      // Empty hand and clear item from counter
+      state.players[0].carriedItem = null;
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+      expect(state.counters["counter-island"].items).toHaveLength(3);
+      expect((state.players[0].carriedItem as IngredientItem)?.ingredient).toBe(
+        "cucumber",
+      );
+    });
+  });
+
+  describe("G6: Simultaneous / Concurrent Actions Consistency", () => {
+    it("handles two players simultaneously grabbing the last remaining ingredient portion atomically", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      // Only 1 portion of salmon left
+      state.fridge.compartments.salmon.stock = 1;
+
+      // Both P0 and P1 are at salmon compartment
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 590, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-fridge",
+        carriedItem: null,
+      };
+      state.players[1] = {
+        ...state.players[1],
+        pos: { x: 590, y: 160 },
+        facing: { x: 0, y: -1 },
+        targetStationId: "station-fridge",
+        carriedItem: null,
+      };
+
+      // Both press Action1 in the same tick
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      // Exactly one player gets the salmon, stock drops to 0, no duplicate item
+      expect(state.fridge.compartments.salmon.stock).toBe(0);
+      const p0HasSalmon =
+        (state.players[0].carriedItem as IngredientItem)?.ingredient ===
+        "salmon";
+      const p1HasSalmon =
+        (state.players[1].carriedItem as IngredientItem)?.ingredient ===
+        "salmon";
+
+      expect(p0HasSalmon).toBe(true);
+      expect(p1HasSalmon).toBe(false);
+      expect(state.players[1].carriedItem).toBeNull();
+    });
+
+    it("handles two players simultaneously placing items on roll station with only 1 capacity slot remaining", () => {
+      let state: WorldState = {
+        ...createInitialWorldState(),
+        phase: "running",
+      };
+
+      // Station has 3 items (max is 4, only 1 spot left)
+      state.rollStations["station-roll-1"].items = [
+        createIngredientItem("nori"),
+        createIngredientItem("rice"),
+        createIngredientItem("salmon"),
+      ];
+
+      state.players[0] = {
+        ...state.players[0],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll-1",
+        carriedItem: createIngredientItem("cucumber"),
+      };
+      state.players[1] = {
+        ...state.players[1],
+        pos: { x: 380, y: 390 },
+        facing: { x: 0, y: 1 },
+        targetStationId: "station-roll-1",
+        carriedItem: createIngredientItem("avocado"),
+      };
+
+      // Both try to place their item at the same time
+      state = updateWorldState(state, 1 / 60, [
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        { ...createNeutralPlayerInput(), action1: true, action1Pressed: true },
+        createNeutralPlayerInput(),
+        createNeutralPlayerInput(),
+      ]);
+
+      // Station has exactly 4 items, P0 placed cucumber, P1 was rejected and still holds avocado
+      expect(state.rollStations["station-roll-1"].items).toHaveLength(4);
+      expect(state.players[0].carriedItem).toBeNull();
+      expect((state.players[1].carriedItem as IngredientItem)?.ingredient).toBe(
+        "avocado",
+      );
+    });
+  });
 });

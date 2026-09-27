@@ -64,3 +64,6 @@ export const INGREDIENT_METADATA: Record<IngredientType, IngredientMetadata> = {
 
 export const DEFAULT_RICE_COOK_TIME = 5.0; // Seconds
 export const DEFAULT_RICE_MAX_PORTIONS = 4; // Portions per full batch
+
+export const DEFAULT_FRIDGE_COMPARTMENT_CAPACITY = 3; // Portions per ingredient compartment
+export const DEFAULT_FRIDGE_REFILL_TIME = 4.0; // Seconds to refill 1 portion

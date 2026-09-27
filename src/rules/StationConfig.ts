@@ -24,3 +24,5 @@ export interface StationDefinition {
 }
 
 export const DEFAULT_INTERACTION_RADIUS = 72; // World pixels
+export const DEFAULT_ROLL_STATION_MAX_ITEMS = 4; // Maximum items on rolling station before blocking
+export const DEFAULT_COUNTER_MAX_ITEMS = 4; // Maximum items on island counter

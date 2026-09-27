@@ -224,44 +224,101 @@ export class Renderer {
           };
         } else if (rs.items.length > 0) {
           const matchingRecipe = findMatchingRecipe(rs.items);
+          const maxCap = rs.maxItems ?? 4;
+          const isFull = rs.items.length >= maxCap;
+          const hasPlate = rs.items.some((i) => i.type === "plate");
+          const itemIcons = rs.items
+            .map((item) => getItemDisplay(item).emoji)
+            .join(" ");
+
           if (matchingRecipe) {
-            const itemIcons = rs.items
-              .map((item) => getItemDisplay(item).emoji)
-              .join(" ");
             stationText = isTargeted
               ? `🍱 ${matchingRecipe.name} rollen (Akt1)`
               : `[ ${itemIcons} ] ✨ Bereit zum Rollen`;
-          } else {
-            const hasPlate = rs.items.some((i) => i.type === "plate");
-            const itemIcons = rs.items
-              .map((item) => getItemDisplay(item).emoji)
-              .join(" ");
+          } else if (hasPlate) {
             stationText = isTargeted
-              ? hasPlate
-                ? `🍽️ Teller nehmen (Akt1)`
-                : `[ ${itemIcons} ] Nehmen (Akt1)`
+              ? `🍽️ Teller nehmen (Akt1)`
               : `[ ${itemIcons} ]`;
+          } else if (isFull) {
+            stationText = isTargeted
+              ? `⚠️ Voll (${rs.items.length}/${maxCap}) [ ${itemIcons} ] Freiräumen (Akt1)`
+              : `⚠️ Voll [ ${itemIcons} ]`;
+          } else {
+            stationText = isTargeted
+              ? `⚠️ Blockiert / Falsch [ ${itemIcons} ] Freiräumen (Akt1)`
+              : `[ ${itemIcons} ] ⚠️ Nicht rollbar`;
           }
         }
       } else if (
         obj.id === "counter-island" &&
         state.counters?.["counter-island"]
       ) {
-        const counterItems = state.counters["counter-island"].items;
+        const counterState = state.counters["counter-island"];
+        const counterItems = counterState.items;
+        const maxCap = counterState.maxItems ?? 4;
         if (counterItems.length > 0) {
           const itemIcons = counterItems
             .map((item) => getItemDisplay(item).emoji)
             .join(" ");
-          stationText = `[ ${itemIcons} ]`;
+          stationText = isTargeted
+            ? `[ ${itemIcons} ] (${counterItems.length}/${maxCap}) Nehmen (Akt1)`
+            : `[ ${itemIcons} ] (${counterItems.length}/${maxCap})`;
         }
       } else if (obj.id === "station-fridge") {
+        const fridge = state.fridge;
         if (isTargeted) {
           const firstTargetPlayer = targetingPlayers[0];
           const targetedIng = getFridgeIngredientForPlayerPos(
             firstTargetPlayer.pos,
             obj.pos,
           );
-          stationText = `${INGREDIENT_METADATA[targetedIng].emoji} ${INGREDIENT_METADATA[targetedIng].label}`;
+          const comp = fridge?.compartments?.[targetedIng];
+          const ingMeta = INGREDIENT_METADATA[targetedIng];
+
+          if (comp) {
+            const stockDots =
+              "●".repeat(comp.stock) +
+              "○".repeat(Math.max(0, comp.maxStock - comp.stock));
+            if (comp.stock > 0) {
+              stationText = `${ingMeta.emoji} ${ingMeta.label} [${stockDots}] (${comp.stock}/${comp.maxStock}) (Akt1)`;
+            } else {
+              stationText = `${ingMeta.emoji} ${ingMeta.label} leer ⏳ ${comp.refillTimeRemaining.toFixed(1)}s`;
+            }
+
+            if (comp.stock < comp.maxStock && comp.refillTimeRemaining > 0) {
+              stationProgressBar = {
+                progress: comp.refillProgress,
+                label: `⏳ ${ingMeta.label} ${comp.refillTimeRemaining.toFixed(1)}s`,
+                fillColor: "#34d399",
+                bgColor: "#27272a",
+                borderColor: "rgba(255, 255, 255, 0.4)",
+                offsetY: -56,
+                width: 72,
+                height: 12,
+              };
+            }
+          } else {
+            stationText = `${ingMeta.emoji} ${ingMeta.label}`;
+          }
+        } else {
+          // Check if any compartment is empty or refilling
+          const refillingComp = fridge?.compartments
+            ? Object.values(fridge.compartments).find(
+                (c) => c.stock < c.maxStock && c.refillTimeRemaining > 0,
+              )
+            : null;
+          if (refillingComp && refillingComp.stock === 0) {
+            stationProgressBar = {
+              progress: refillingComp.refillProgress,
+              label: `⏳ Nachfüllen ${refillingComp.refillTimeRemaining.toFixed(1)}s`,
+              fillColor: "#34d399",
+              bgColor: "#27272a",
+              borderColor: "rgba(255, 255, 255, 0.4)",
+              offsetY: -56,
+              width: 72,
+              height: 12,
+            };
+          }
         }
       } else if (obj.id === "station-delivery") {
         if (isTargeted) {

@@ -2,6 +2,10 @@ import type { PlayerIndex } from "../input/PlayerInput";
 import type { Vec2 } from "../math/vec2";
 import type { IngredientType } from "./IngredientConfig";
 import {
+  DEFAULT_FRIDGE_REFILL_TIME,
+  FRIDGE_INGREDIENTS,
+} from "./IngredientConfig";
+import {
   createDroppedItem,
   createIngredientItem,
   createPlateItem,
@@ -12,7 +16,11 @@ import {
   createInitialRollStationState,
   type RollStationState,
 } from "../state/StationState";
-import type { StationDefinition } from "./StationConfig";
+import {
+  DEFAULT_COUNTER_MAX_ITEMS,
+  DEFAULT_ROLL_STATION_MAX_ITEMS,
+  type StationDefinition,
+} from "./StationConfig";
 import {
   DEFAULT_ORDER_SPAWN_DELAY,
   DEFAULT_RECIPE_ID,
@@ -217,9 +225,65 @@ export function advanceStationTimers(
     ? advanceScoreState(state.scoreState, dt)
     : state.scoreState;
 
+  // 6. Advance fridge compartment refill timers
+  let fridge = state.fridge;
+  if (fridge && fridge.compartments) {
+    let fridgeChanged = false;
+    const updatedCompartments = { ...fridge.compartments };
+    for (const ing of FRIDGE_INGREDIENTS) {
+      const comp = fridge.compartments[ing];
+      if (!comp) continue;
+      if (comp.stock < comp.maxStock) {
+        fridgeChanged = true;
+        let timeRemaining = comp.refillTimeRemaining;
+        const totalTime =
+          comp.totalRefillTime > 0
+            ? comp.totalRefillTime
+            : DEFAULT_FRIDGE_REFILL_TIME;
+        if (timeRemaining <= 0) {
+          timeRemaining = totalTime;
+        }
+        const newTime = Math.max(0, timeRemaining - dt);
+        const progress =
+          totalTime > 0 ? Math.min(1, Math.max(0, 1 - newTime / totalTime)) : 1;
+
+        if (newTime <= 0) {
+          const nextStock = comp.stock + 1;
+          const isStillRefilling = nextStock < comp.maxStock;
+          updatedCompartments[ing] = {
+            ...comp,
+            stock: nextStock,
+            refillTimeRemaining: isStillRefilling ? totalTime : 0,
+            refillProgress: 0,
+          };
+        } else {
+          updatedCompartments[ing] = {
+            ...comp,
+            refillTimeRemaining: newTime,
+            refillProgress: progress,
+          };
+        }
+      } else if (comp.refillTimeRemaining !== 0 || comp.refillProgress !== 0) {
+        fridgeChanged = true;
+        updatedCompartments[ing] = {
+          ...comp,
+          refillTimeRemaining: 0,
+          refillProgress: 0,
+        };
+      }
+    }
+    if (fridgeChanged) {
+      fridge = {
+        ...fridge,
+        compartments: updatedCompartments,
+      };
+    }
+  }
+
   return {
     ...state,
     riceCooker,
+    fridge,
     rollStation: updatedPrimary,
     rollStations: updatedRollStations,
     activeOrders,
@@ -287,6 +351,13 @@ function handleAction1(
         return state;
       }
 
+      // Check capacity limit
+      const maxItems =
+        currentRollState.maxItems ?? DEFAULT_ROLL_STATION_MAX_ITEMS;
+      if (currentRollState.items.length >= maxItems) {
+        return state;
+      }
+
       // Place item onto Roll Station
       const updatedRollItems = [...currentRollState.items, carried];
       const updatedPlayers = [...state.players] as typeof state.players;
@@ -307,10 +378,20 @@ function handleAction1(
     if (targetStation?.type === "counter") {
       // Place item onto Counter
       const counterId = targetStation.id;
-      const counterItems = state.counters[counterId]?.items ?? [];
+      const counterState = state.counters[counterId];
+      const counterItems = counterState?.items ?? [];
+      const maxItems = counterState?.maxItems ?? DEFAULT_COUNTER_MAX_ITEMS;
+
+      if (counterItems.length >= maxItems) {
+        return state;
+      }
+
       const updatedCounters = {
         ...state.counters,
-        [counterId]: { items: [...counterItems, carried] },
+        [counterId]: {
+          ...counterState,
+          items: [...counterItems, carried],
+        },
       };
       const updatedPlayers = [...state.players] as typeof state.players;
       updatedPlayers[slot] = { ...player, carriedItem: null };
@@ -323,21 +404,127 @@ function handleAction1(
     }
 
     if (targetStation?.type === "fridge") {
-      // Swap carried ingredient with selected fridge ingredient
-      const nextIng = getFridgeIngredientForPlayerPos(
+      const targetIng = getFridgeIngredientForPlayerPos(
         player.pos,
         targetStation.pos,
       );
-      const updatedPlayers = [...state.players] as typeof state.players;
-      updatedPlayers[slot] = {
-        ...player,
-        carriedItem: createIngredientItem(nextIng),
-      };
 
-      return {
-        ...state,
-        players: updatedPlayers,
-      };
+      const fridge = state.fridge;
+      if (!fridge || !fridge.compartments) {
+        // Fallback swap if no compartments
+        const updatedPlayers = [...state.players] as typeof state.players;
+        updatedPlayers[slot] = {
+          ...player,
+          carriedItem: createIngredientItem(targetIng),
+        };
+        return {
+          ...state,
+          players: updatedPlayers,
+        };
+      }
+
+      if (carried.type === "ingredient") {
+        const carriedIng = carried.ingredient;
+
+        // If carried ingredient matches target compartment, return it to fridge
+        if (carriedIng === targetIng) {
+          const comp = fridge.compartments[targetIng];
+          if (comp && comp.stock < comp.maxStock) {
+            const nextStock = comp.stock + 1;
+            const isFull = nextStock >= comp.maxStock;
+            const updatedComp = {
+              ...comp,
+              stock: nextStock,
+              refillTimeRemaining: isFull ? 0 : comp.refillTimeRemaining,
+              refillProgress: isFull ? 0 : comp.refillProgress,
+            };
+            const updatedFridge = {
+              ...fridge,
+              compartments: {
+                ...fridge.compartments,
+                [targetIng]: updatedComp,
+              },
+            };
+            const updatedPlayers = [...state.players] as typeof state.players;
+            updatedPlayers[slot] = {
+              ...player,
+              carriedItem: null,
+            };
+            return {
+              ...state,
+              players: updatedPlayers,
+              fridge: updatedFridge,
+            };
+          }
+          // Already full, cannot return same ingredient further
+          return state;
+        }
+
+        // Different ingredient: Swap if target compartment has stock
+        const targetComp = fridge.compartments[targetIng];
+        if (!targetComp || targetComp.stock <= 0) {
+          // Cannot take from empty compartment
+          return state;
+        }
+
+        const nextTargetStock = targetComp.stock - 1;
+        const totalTime =
+          targetComp.totalRefillTime > 0
+            ? targetComp.totalRefillTime
+            : DEFAULT_FRIDGE_REFILL_TIME;
+        const startRefill =
+          targetComp.refillTimeRemaining === 0 &&
+          nextTargetStock < targetComp.maxStock;
+
+        const updatedTargetComp = {
+          ...targetComp,
+          stock: nextTargetStock,
+          refillTimeRemaining: startRefill
+            ? totalTime
+            : targetComp.refillTimeRemaining,
+          refillProgress: startRefill ? 0 : targetComp.refillProgress,
+        };
+
+        const updatedCompartments = {
+          ...fridge.compartments,
+          [targetIng]: updatedTargetComp,
+        };
+
+        // If carried ingredient is one of fridge ingredients, deposit it back
+        const carriedComp = fridge.compartments[carriedIng];
+        if (carriedComp && carriedComp.stock < carriedComp.maxStock) {
+          const nextCarriedStock = carriedComp.stock + 1;
+          const isCarriedFull = nextCarriedStock >= carriedComp.maxStock;
+          updatedCompartments[carriedIng] = {
+            ...carriedComp,
+            stock: nextCarriedStock,
+            refillTimeRemaining: isCarriedFull
+              ? 0
+              : carriedComp.refillTimeRemaining,
+            refillProgress: isCarriedFull ? 0 : carriedComp.refillProgress,
+          };
+        }
+
+        const updatedFridge = {
+          ...fridge,
+          compartments: updatedCompartments,
+        };
+
+        const updatedPlayers = [...state.players] as typeof state.players;
+        updatedPlayers[slot] = {
+          ...player,
+          carriedItem: createIngredientItem(targetIng),
+        };
+
+        return {
+          ...state,
+          players: updatedPlayers,
+          fridge: updatedFridge,
+        };
+      }
+
+      // If carrying a plate at fridge: no-op (fridge rejects plates)
+      return state;
     }
 
     if (targetStation?.type === "delivery") {
@@ -393,6 +580,46 @@ function handleAction1(
   if (targetStation?.type === "fridge") {
     // Take ingredient from Fridge
     const ing = getFridgeIngredientForPlayerPos(player.pos, targetStation.pos);
+    const fridge = state.fridge;
+    if (fridge && fridge.compartments) {
+      const comp = fridge.compartments[ing];
+      if (!comp || comp.stock <= 0) {
+        // Empty / refilling compartment -> cannot take
+        return state;
+      }
+      const nextStock = comp.stock - 1;
+      const totalTime =
+        comp.totalRefillTime > 0
+          ? comp.totalRefillTime
+          : DEFAULT_FRIDGE_REFILL_TIME;
+      const startRefill =
+        comp.refillTimeRemaining === 0 && nextStock < comp.maxStock;
+      const updatedCompartment = {
+        ...comp,
+        stock: nextStock,
+        refillTimeRemaining: startRefill ? totalTime : comp.refillTimeRemaining,
+        refillProgress: startRefill ? 0 : comp.refillProgress,
+      };
+      const updatedFridge = {
+        ...fridge,
+        compartments: {
+          ...fridge.compartments,
+          [ing]: updatedCompartment,
+        },
+      };
+      const updatedPlayers = [...state.players] as typeof state.players;
+      updatedPlayers[slot] = {
+        ...player,
+        carriedItem: createIngredientItem(ing),
+      };
+
+      return {
+        ...state,
+        players: updatedPlayers,
+        fridge: updatedFridge,
+      };
+    }
+
     const updatedPlayers = [...state.players] as typeof state.players;
     updatedPlayers[slot] = {
       ...player,
